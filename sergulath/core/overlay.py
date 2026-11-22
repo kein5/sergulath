@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import ctypes
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from . import png
@@ -24,6 +24,11 @@ class OverlayState:
     drawn_px: int = 0  # pixels with non-zero alpha
     image: Path | None = None
     error: str = ""
+
+    def to_dict(self) -> dict:
+        data = asdict(self)
+        data["image"] = str(self.image) if self.image else None
+        return data
 
 
 def capture(openvr, keys: list[str], out_dir: Path | None) -> list[OverlayState]:

@@ -6,6 +6,11 @@ import tomllib
 from importlib import resources
 
 
+def names() -> list[str]:
+    """The bundled profiles, by name."""
+    return sorted(p.name[: -len(".toml")] for p in resources.files(__package__).iterdir() if p.name.endswith(".toml"))
+
+
 def load(name: str) -> dict:
     """Load a bundled profile by name, such as "astarot"."""
     text = resources.files(__package__).joinpath(f"{name}.toml").read_text(encoding="utf-8")

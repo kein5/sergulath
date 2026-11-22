@@ -1,55 +1,51 @@
-"""Command line: `sergulath watch` and `sergulath overlay`. Both only read."""
+"""SERGULATH's command line, its primary interface.
+
+Every capability is a subcommand that can be scripted: data on stdout (text or JSON Lines),
+messages on stderr, no prompts, and documented exit codes (`sergulath.output`).
+"""
 
 from __future__ import annotations
 
 import argparse
 import sys
-from pathlib import Path
 
-from . import overlay, profiles, watch
-from .steamvr import SteamVRNotRunning, background_client
+from . import __version__, output
+from .commands import COMMANDS
+from .core.steamvr import SteamVRNotRunning
 
-
-def _watch(args) -> int:
-    with background_client() as openvr:
-        watch.run(openvr, Path(args.out), args.minutes, args.interval)
-    return 0
+EPILOG = """exit codes: 0 done, 1 ran but found nothing, 2 usage error,
+3 SteamVR is not running (the tools never start it), 4 failed"""
 
 
-def _overlay(args) -> int:
-    profile = profiles.load(args.profile)
-    labels = profile.get("legacy_overlays" if args.legacy else "overlays", {})
-    keys = args.key or list(labels)
-    with background_client() as openvr:
-        states = overlay.capture(openvr, keys, Path(args.out) if args.out else None)
-    for state in states:
-        print(overlay.describe(state, labels.get(state.key, "")))
-    return 0 if any(s.found for s in states) else 1
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="sergulath",
+        description="Operate and check SteamVR overlay apps on a real headset.",
+        epilog=EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("--version", action="version", version=f"sergulath {__version__}")
+    sub = parser.add_subparsers(dest="command", required=True, metavar="COMMAND")
+    for command in COMMANDS:
+        p = sub.add_parser(command.NAME, help=command.HELP, description=command.__doc__)
+        command.add_arguments(p)
+        p.set_defaults(run=command.run)
+    return parser
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="sergulath", description=__doc__)
-    sub = parser.add_subparsers(dest="command", required=True)
-
-    w = sub.add_parser("watch", help="log headset and controller connection, pose, tracking and activity")
-    w.add_argument("--out", required=True, help="CSV file to write")
-    w.add_argument("--minutes", type=int, default=20, help="how long to watch (default 20)")
-    w.add_argument("--interval", type=float, default=60.0, help="seconds between samples (default 60)")
-    w.set_defaults(func=_watch)
-
-    o = sub.add_parser("overlay", help="list an app's overlays and optionally save their pixels")
-    o.add_argument("--profile", default="astarot", help="app profile (default astarot)")
-    o.add_argument("--legacy", action="store_true", help="use the profile's older overlay keys")
-    o.add_argument("--key", action="append", help="overlay key to read instead of the profile's (repeatable)")
-    o.add_argument("--out", help="folder to save <key>.png into; without it, pixels are not read")
-    o.set_defaults(func=_overlay)
-
-    args = parser.parse_args(argv)
+    args = build_parser().parse_args(argv)
     try:
-        return args.func(args)
+        return args.run(args)
     except SteamVRNotRunning as e:
-        print(f"sergulath: {e}. Start SteamVR first; the tools do not start it.", file=sys.stderr)
-        return 2
+        output.note(f"{e}. Start SteamVR first; the tools do not start it.")
+        return output.STEAMVR_NOT_RUNNING
+    except KeyboardInterrupt:
+        output.note("interrupted")
+        return output.FAILED
+    except Exception as e:  # noqa: BLE001 - one line on stderr and a stable exit code
+        output.note(f"{type(e).__name__}: {e}")
+        return output.FAILED
 
 
 if __name__ == "__main__":

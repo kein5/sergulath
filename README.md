@@ -6,21 +6,38 @@ Tools for operating and checking SteamVR overlay apps on a real headset (first a
 
 [日本語](docs/README.ja.md)
 
-> Status: stage 0. `watch` and `overlay` are here; the other tools move in step by step (see [Plan](#plan)).
+> Status: stage 0. `watch`, `overlay` and `profiles` are here; the other commands move in step by step (see [Plan](#plan)).
+
+## The command line comes first
+
+SERGULATH is a command-line tool. Every capability is a subcommand of `sergulath`, usable by hand and from scripts, CI or other agents, and commands combine through pipes and files. The Python package underneath (`sergulath.core`) prints nothing and serves the commands; it is not a separate interface.
+
+Every command keeps these conventions:
+
+- Data goes to stdout, messages go to stderr.
+- `--format text` (the default) is for people; `--format json` prints JSON Lines, one object per record, for `jq` and other commands.
+- No command prompts or waits for input.
+- Exit codes: `0` done, `1` ran but found nothing, `2` usage error, `3` SteamVR is not running (the commands never start it), `4` failed.
+- Files a command writes are named by an option (`--csv`, `--save`); nothing is written elsewhere.
 
 ## Use
-
-Both commands only read. They connect to a SteamVR that already runs (`vrserver` and `vrcompositor`) as a background OpenVR client and never start SteamVR.
 
 ```sh
 pip install .            # Python 3.11 or later, Windows
 
-# Headset and controllers once a minute for 20 minutes: connection, pose, tracking result, headset activity
-sergulath watch --out records/watch.csv --minutes 20
+sergulath profiles                         # the bundled app profiles and their overlay keys
 
-# An app's overlays (from its profile): found, shown, alpha, width; with --out, also their pixels as PNG
-sergulath overlay --profile astarot --out records/overlays
+# Headset and controllers once a minute for 20 minutes (21 samples): connection, pose, tracking result, headset activity
+sergulath watch --csv records/watch.csv
+
+# An app's overlays: found, shown, alpha, width; --save also writes their pixels as PNG
+sergulath overlay --profile astarot --save records/overlays
+
+# Composing: is the multi-line caption overlay shown right now?
+sergulath overlay --format json | jq -e 'select(.key == "ASTAROT1") | .visible'
 ```
+
+`watch`, `overlay` and `profiles` only read. `watch` and `overlay` connect to a SteamVR that already runs (`vrserver` and `vrcompositor`) as a background OpenVR client.
 
 Records can show a room, a desktop or file names; `records/` is ignored by git.
 
@@ -32,23 +49,25 @@ The first app it serves is [ASTAROT](https://github.com/kein5/astarot). Anything
 
 ## Plan
 
-| Part | What it does | Stage |
-|---|---|---|
-| `watch` | Logs headset and controller connection, pose validity, tracking result and activity level at a fixed interval | 0, done |
-| `overlay` | Lists an app's overlays and saves their pixels (`IVROverlay::GetOverlayImageData`) | 0, done |
-| `logs` | Builds one timeline from `vrserver.txt`, `vrcompositor.txt` and the app's log | 0 |
-| `steamvr` | Reports and starts SteamVR, tells whether `vrmonitor` runs, waits for the headset | 0 |
-| `settings` (PROCULO) | Reads and changes standby and sleep settings, with a snapshot to restore | 0 |
-| `view` | Opens the VR view and saves its image | 1 |
-| `chaperone` | Reads the play area and applies a temporary one through the chaperone setup API's working copy, then restores it | 1 |
-| `driver` | A virtual controller (an OpenVR driver) for unattended input, registered only for a check | 2, if stage 1 shows it is needed |
-| `profiles/` | Per-app, per-version facts, starting with `astarot.toml` | 0, done |
+Each part is a subcommand of `sergulath`. Commands that change something have a read-only form and take an explicit action word for the change.
 
-Stage 0 moves in tools that already exist as scripts. Stage 1 measures how far a real headset can be checked without a person. Stage 2 is decided from those measurements.
+| Command | What it does | Stage |
+|---|---|---|
+| `sergulath watch` | Samples headset and controller connection, pose validity, tracking result and the headset's activity level at a fixed interval | 0, done |
+| `sergulath overlay` | Lists an app's overlays and saves their pixels (`IVROverlay::GetOverlayImageData`) | 0, done |
+| `sergulath profiles` | Lists the bundled app profiles (per-app, per-version facts, starting with ASTAROT's) | 0, done |
+| `sergulath logs` | Builds one timeline from `vrserver.txt`, `vrcompositor.txt` and the app's log | 0 |
+| `sergulath steamvr status` / `start` / `wait` | Reports SteamVR (including whether `vrmonitor` runs), starts it, waits for the headset | 0 |
+| `sergulath settings show` / `set` / `restore` (PROCULO) | Standby and sleep settings, with a snapshot to restore | 0 |
+| `sergulath view open` / `save` | Opens the VR view and saves its image | 1 |
+| `sergulath chaperone show` / `apply` / `restore` | The play area; `apply` uses the chaperone setup API's working copy for this session only | 1 |
+| `sergulath driver register` / `send` / `unregister` | A virtual controller (an OpenVR driver) for unattended input, registered only for a check | 2, if stage 1 shows it is needed |
+
+Stage 0 turns the scripts that already exist into commands. Stage 1 measures how far a real headset can be checked without a person. Stage 2 is decided from those measurements.
 
 ## Ground rules
 
-1. Read-only by default. Every command that changes something asks for an explicit flag.
+1. Read-only by default. A change needs an explicit action word or flag.
 2. Snapshot before changing any SteamVR setting, play area or registration, and restore on exit, including after a failure.
 3. A virtual driver is registered only for the duration of a check, so the user's normal VR sessions never see it.
 4. Never touch an app's own settings. When the tools start an app, they give it a separate settings folder.

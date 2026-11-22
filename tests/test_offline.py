@@ -4,7 +4,8 @@ import struct
 import unittest
 import zlib
 
-from sergulath import png, profiles, steamvr, watch
+from sergulath import profiles
+from sergulath.core import png, steamvr, watch
 
 
 class PngTest(unittest.TestCase):

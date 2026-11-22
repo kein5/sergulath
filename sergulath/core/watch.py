@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -84,16 +85,26 @@ def summary(samples: list[DeviceSample]) -> str:
     return "; ".join(parts)
 
 
-def run(openvr, out: Path, minutes: int, interval_s: float = 60.0, echo=print) -> None:
-    """Take `minutes` + 1 samples, `interval_s` apart, into the CSV file `out`."""
-    out.parent.mkdir(parents=True, exist_ok=True)
-    with out.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(FIELDS)
-        for n in range(minutes + 1):
-            samples = sample_devices(openvr, n)
-            writer.writerows(s.row() for s in samples)
-            f.flush()
-            echo(f"{samples[0].time if samples else datetime.now().astimezone().isoformat(timespec='seconds')} {summary(samples)}")
-            if n < minutes:
-                time.sleep(interval_s)
+def sample_series(openvr, count: int, interval_s: float, sleep=time.sleep) -> Iterator[list[DeviceSample]]:
+    """Yield `count` rounds of samples, `interval_s` apart (no wait after the last)."""
+    for n in range(count):
+        yield sample_devices(openvr, n)
+        if n < count - 1:
+            sleep(interval_s)
+
+
+class CsvRecord:
+    """Appends samples to a CSV file, flushing each round so an interrupted watch keeps its rows."""
+
+    def __init__(self, path: Path):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self._file = path.open("w", newline="", encoding="utf-8")
+        self._writer = csv.writer(self._file)
+        self._writer.writerow(FIELDS)
+
+    def add(self, samples: list[DeviceSample]) -> None:
+        self._writer.writerows(s.row() for s in samples)
+        self._file.flush()
+
+    def close(self) -> None:
+        self._file.close()

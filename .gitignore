@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Builds
+build/
+dist/
+out/
+
+# Records and captures from checks: they can show the user's room, desktop or files
+records/
+captures/
+*.png
+!docs/**/*.png

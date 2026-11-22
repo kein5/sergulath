@@ -132,6 +132,20 @@ class WatchFrameTest(unittest.TestCase):
         self.assertIn("frame: unreachable (ssh failed)", out)
 
 
+class SteamVRStatusCommandTest(unittest.TestCase):
+    def test_not_running_is_exit_code_1_without_connecting(self):
+        from sergulath.core import steamvr_status
+
+        stopped = steamvr_status.Status(processes={n: None for n in steamvr_status.PROCESSES})
+        with mock.patch.object(steamvr_status, "read_status", lambda: stopped), \
+                mock.patch.object(steamvr, "background_client", side_effect=AssertionError("must not connect")):
+            code, out, _ = _run(["steamvr", "status", "--format", "json"])
+        self.assertEqual(code, output.NOT_MET)
+        record = json.loads(out)
+        self.assertFalse(record["running"])
+        self.assertNotIn("devices", record)
+
+
 class ProfilesCommandTest(unittest.TestCase):
     def test_lists_astarot_without_steamvr(self):
         code, out, _ = _run(["profiles", "--format", "json"])

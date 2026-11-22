@@ -25,6 +25,7 @@ SERGULATH はコマンドラインの道具です。できることはすべて 
 ```sh
 pip install .            # Python 3.11 以降、Windows
 
+sergulath steamvr status                   # SteamVR が動いているか、状態ウィンドウ、版、ヘッドセットとコントローラーの状態
 sergulath profiles                         # 同梱のアプリのプロファイルと、オーバーレイのキー
 
 # ヘッドセットとコントローラーを1分ごとに20分間（21回）記録する（接続、位置の有無、追跡の状態、ヘッドセットの活動の状態）
@@ -74,7 +75,8 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 | `sergulath overlay` | アプリのオーバーレイを一覧にし、画素を保存する（`IVROverlay::GetOverlayImageData`） | 0（済み） |
 | `sergulath profiles` | 同梱のアプリのプロファイル（アプリと版ごとの情報。まず ASTAROT のもの）を一覧にする | 0（済み） |
 | `sergulath logs` | `vrserver.txt`、`vrcompositor.txt`、アプリのログから1本の時系列を作る | 0 |
-| `sergulath steamvr status` / `start` / `wait` | SteamVR の状態を示す（`vrmonitor` が動いているかを含む）。起動し、ヘッドセットの接続を待つ | 0 |
+| `sergulath steamvr status` | SteamVR が動いているか、`vrmonitor` が動いているか、版、ヘッドセットとコントローラーの状態を示す | 0（済み） |
+| `sergulath steamvr start` / `wait` | SteamVR を起動し、ヘッドセットの接続を待つ | 0 |
 | `sergulath settings show` / `set` / `restore`（PROCULO） | 待機とスリープの設定。写しを取ってから変え、写しから元に戻せる | 0 |
 | `sergulath view save` / `screenshot` | ヘッドセットに映っているものを保存する。VR表示のウィンドウ（シーンとオーバーレイ）か、SteamVR のスクリーンショット（シーンだけ）。[PC から見えるもの](#pc-から見えるもの)を参照 | 0（試作） |
 | `sergulath caption sample start` / `stop`、`sergulath caption check` | アプリのサンプルの字幕をセッションの側から送り、字幕のオーバーレイが描かれているかを確かめる | 0（済み） |

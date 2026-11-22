@@ -25,6 +25,7 @@ Every command keeps these conventions:
 ```sh
 pip install .            # Python 3.11 or later, Windows
 
+sergulath steamvr status                   # SteamVR running? status window? version, headset and controllers
 sergulath profiles                         # the bundled app profiles and their overlay keys
 
 # Headset and controllers once a minute for 20 minutes (21 samples): connection, pose, tracking result, headset activity
@@ -74,7 +75,8 @@ Each part is a subcommand of `sergulath`. Commands that change something have a 
 | `sergulath overlay` | Lists an app's overlays and saves their pixels (`IVROverlay::GetOverlayImageData`) | 0, done |
 | `sergulath profiles` | Lists the bundled app profiles (per-app, per-version facts, starting with ASTAROT's) | 0, done |
 | `sergulath logs` | Builds one timeline from `vrserver.txt`, `vrcompositor.txt` and the app's log | 0 |
-| `sergulath steamvr status` / `start` / `wait` | Reports SteamVR (including whether `vrmonitor` runs), starts it, waits for the headset | 0 |
+| `sergulath steamvr status` | Reports SteamVR: running or not, whether `vrmonitor` runs, its version, the headset's and controllers' state | 0, done |
+| `sergulath steamvr start` / `wait` | Starts SteamVR, waits for the headset | 0 |
 | `sergulath settings show` / `set` / `restore` (PROCULO) | Standby and sleep settings, with a snapshot to restore | 0 |
 | `sergulath view save` / `screenshot` | Saves what the headset shows: the VR View window (scene and overlays) or a SteamVR screenshot (scene only). See [What the PC can see](#what-the-pc-can-see) | 0, prototype |
 | `sergulath caption sample start` / `stop`, `sergulath caption check` | Sends the app's sample caption from the session side, and checks that the caption overlay renders | 0, done |

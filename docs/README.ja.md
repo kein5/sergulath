@@ -81,7 +81,7 @@ sergulath driver run --restart -- sergulath overlay press --overlay ASTAROT3 --b
 
 `GetControllerState` でボタンを読むアプリ（ASTAROT もそう）には、ドライバーのレガシーの割り当てを通して、トリガー（`k_EButton_SteamVR_Trigger`）、グリップ、アプリケーションメニューが届きます。システムボタンは SteamVR が自分で使います。
 
-2026-11-23 に、机の上に置いてスタンバイになった Steam Frame と SteamVR 2.19.4 で確かめました。ドライバーは Frame のドライバーと並んで読み込まれ、2つのコントローラーには正しい位置と左右の役割が付き、ASTAROT のランチャーは仮想の左手に付きました。ただし SteamVR の `ComputeOverlayIntersection` はどのオーバーレイにも当たりなしを返し、SERGULATH が自分で作った不透明なオーバーレイでも、オーバーレイのアプリとして呼んでも結果は同じです。ASTAROT のレーザーも同じ呼び出しを使うので、ヘッドセットがスタンバイのあいだは何も押せません。押す確認には、ヘッドセットが起きている必要があります。同じ状態で VR View も黒くなります。
+2026-11-23 に、机の上に置いてスタンバイになった Steam Frame と SteamVR 2.19.4 で確かめました。ドライバーは Frame のドライバーと並んで読み込まれ、2つのコントローラーには正しい位置と左右の役割が付き、ASTAROT のランチャーは仮想の左手に付きました。ただし SteamVR の `ComputeOverlayIntersection` はどのオーバーレイにも当たりなしを返し、SERGULATH が自分で作った不透明なオーバーレイでも、オーバーレイのアプリとして呼んでも結果は同じです。ASTAROT のレーザーも同じ呼び出しを使うので、この状態では何も押せません。同じ状態で VR View も黒くなります。ドライバーからスタンバイを止めても（`standby block`。`ShouldBlockStandbyMode`）変わらず、ヘッドセットはどちらでも `idle` でした。ASTAROT には仮想のグリップが届きましたが（ログは `overlay grab: hand 2 grip true hit none`）、レーザーはどこにも当たりませんでした。残る違いはヘッドセットの位置が取れないことで、仮想のヘッドセットを設計しているところです。
 
 ## 作る理由
 
@@ -98,10 +98,10 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 | `sergulath watch` | ヘッドセットとコントローラーの接続、位置の有無、追跡の状態、ヘッドセットの活動の状態を一定の間隔で記録する | 0（済み） |
 | `sergulath overlay` | アプリのオーバーレイを一覧にし、画素を保存する（`IVROverlay::GetOverlayImageData`）。`--placement` で付いている先と位置を読み、`watch --overlay` で時間を追って記録する | 0（済み） |
 | `sergulath profiles` | 同梱のアプリのプロファイル（アプリと版ごとの情報。まず ASTAROT のもの）を一覧にする | 0（済み） |
-| `sergulath logs` | `vrserver.txt`、`vrcompositor.txt`、アプリのログから1本の時系列を作る | 0 |
+| `sergulath logs` | `vrserver.txt`、`vrcompositor.txt`、アプリのログから1本の時系列を作る（時刻は UTC との差を付けた現地時刻） | 0（済み） |
 | `sergulath steamvr status` | SteamVR が動いているか、`vrmonitor` が動いているか、版、ヘッドセットとコントローラーの状態を示す | 0（済み） |
-| `sergulath steamvr start` / `wait` | SteamVR を起動し、ヘッドセットの接続を待つ | 0 |
-| `sergulath settings show` / `set` / `restore`（PROCULO） | 待機とスリープの設定。写しを取ってから変え、写しから元に戻せる | 0 |
+| `sergulath steamvr start` / `wait` / `stop` | SteamVR を Steam から起動し、ヘッドセットの接続（または追跡）を待ち、SteamVR を終了する | 0（済み） |
+| `sergulath settings show` / `set` / `restore` / `pending` | SteamVR の設定（`section.name=値`）。変える前に対象のキーの写しを取り、キーごとに元に戻す | 0（済み） |
 | `sergulath view save` / `screenshot` | ヘッドセットに映っているものを保存する。VR表示のウィンドウ（シーンとオーバーレイ）か、SteamVR のスクリーンショット（シーンだけ）。[PC から見えるもの](#pc-から見えるもの)を参照 | 0（試作） |
 | `sergulath caption sample start` / `stop`、`sergulath caption check` | アプリのサンプルの字幕をセッションの側から送り、字幕のオーバーレイが描かれているかを確かめる | 0（済み） |
 | `sergulath frame overlays` | 単体で動くヘッドセット自身のシステムのオーバーレイを SSH で読む（状態と、読めるものは画像） | 1（試作） |

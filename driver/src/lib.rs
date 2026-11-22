@@ -481,7 +481,7 @@ unsafe extern "C" fn provider_run_frame(_this: *mut Provider) {
 }
 
 unsafe extern "C" fn provider_should_block_standby(_this: *mut Provider) -> bool {
-    false
+    guard(false, || lock(state()).block_standby)
 }
 
 unsafe extern "C" fn provider_noop(_this: *mut Provider) {}

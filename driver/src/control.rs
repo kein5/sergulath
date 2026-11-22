@@ -8,6 +8,7 @@
 //! disconnect <left|right>                -> ok        (it stays added, reported as not connected)
 //! pose <left|right> x y z qw qx qy qz    -> ok        (SteamVR's raw tracking space, metres)
 //! button <left|right> <name> <0|1>       -> ok        (name: trigger, grip, menu, system)
+//! standby <block|allow>                -> ok        (ShouldBlockStandbyMode; allow by default)
 //! state                                  -> ok {json}
 //! ```
 
@@ -57,6 +58,8 @@ pub enum Command {
     Pose(Hand, [f64; 3], [f64; 4]),
     Button(Hand, usize, bool),
     State,
+    /// Ask SteamVR to stay out of standby (ShouldBlockStandbyMode) while a check runs.
+    BlockStandby(bool),
 }
 
 pub fn parse(line: &str) -> Result<Command, String> {
@@ -67,6 +70,8 @@ pub fn parse(line: &str) -> Result<Command, String> {
     match words.as_slice() {
         ["hello"] => Ok(Command::Hello),
         ["state"] => Ok(Command::State),
+        ["standby", "block"] => Ok(Command::BlockStandby(true)),
+        ["standby", "allow"] => Ok(Command::BlockStandby(false)),
         ["connect", hand] => Ok(Command::Connect(Hand::parse(hand)?)),
         ["disconnect", hand] => Ok(Command::Disconnect(Hand::parse(hand)?)),
         ["pose", hand, rest @ ..] if rest.len() == 7 => {
@@ -119,6 +124,8 @@ pub struct State {
     pub hands: [HandState; 2],
     /// Set by the driver side: SteamVR's object id once a controller was activated.
     pub object_ids: [Option<u32>; 2],
+    /// Whether the driver asks SteamVR not to go to standby. Off until asked.
+    pub block_standby: bool,
 }
 
 impl State {
@@ -127,6 +134,10 @@ impl State {
         match command {
             Command::Hello => format!("ok sergulath-driver {VERSION}"),
             Command::State => format!("ok {}", self.to_json()),
+            Command::BlockStandby(on) => {
+                self.block_standby = on;
+                "ok".into()
+            }
             Command::Connect(hand) => self.change(hand, |h| h.connected = true),
             Command::Disconnect(hand) => self.change(hand, |h| {
                 h.connected = false;
@@ -158,7 +169,7 @@ impl State {
                 h.rotation[0], h.rotation[1], h.rotation[2], h.rotation[3], buttons.join(",")
             )
         }).collect();
-        format!("{{\"version\":\"{VERSION}\",{}}}", hands.join(","))
+        format!("{{\"version\":\"{VERSION}\",\"block_standby\":{},{}}}", self.block_standby, hands.join(","))
     }
 }
 

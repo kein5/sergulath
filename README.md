@@ -81,7 +81,7 @@ sergulath driver run --restart -- sergulath overlay press --overlay ASTAROT3 --b
 
 Apps that read buttons with `GetControllerState` (ASTAROT does) get them through the driver's legacy binding: trigger (`k_EButton_SteamVR_Trigger`), grip and application menu. SteamVR keeps the system button for itself.
 
-Measured on 2026-11-23 (Steam Frame on a desk, in standby; SteamVR 2.19.4): the driver loads beside the Frame's, both controllers get valid poses and the left/right roles, and ASTAROT's launcher follows the virtual left hand. But SteamVR's `ComputeOverlayIntersection` answered no hit for every overlay, even an opaque one SERGULATH made itself and an app run as an overlay app. ASTAROT's laser uses the same call, so with the headset in standby nothing can be pressed; the check needs the headset awake. The VR View goes black in the same state.
+Measured on 2026-11-23 (Steam Frame on a desk, in standby; SteamVR 2.19.4): the driver loads beside the Frame's, both controllers get valid poses and the left/right roles, and ASTAROT's launcher follows the virtual left hand. But SteamVR's `ComputeOverlayIntersection` answered no hit for every overlay, even an opaque one SERGULATH made itself and an app run as an overlay app. ASTAROT's laser uses the same call, so with the headset in standby nothing can be pressed; the check needs the headset awake. The VR View goes black in the same state. Blocking standby from the driver (`standby block`, `ShouldBlockStandbyMode`) did not change it; the headset reported `idle` either way. ASTAROT received the virtual grip (its log: `overlay grab: hand 2 grip true hit none`) but its laser hit nothing. The headset's missing pose is the remaining difference; a virtual headset is being designed.
 
 ## Why
 
@@ -98,10 +98,10 @@ Each part is a subcommand of `sergulath`. Commands that change something have a 
 | `sergulath watch` | Samples headset and controller connection, pose validity, tracking result and the headset's activity level at a fixed interval | 0, done |
 | `sergulath overlay` | Lists an app's overlays and saves their pixels (`IVROverlay::GetOverlayImageData`); `--placement` reads what each follows and where it sits; `watch --overlay` samples them over time | 0, done |
 | `sergulath profiles` | Lists the bundled app profiles (per-app, per-version facts, starting with ASTAROT's) | 0, done |
-| `sergulath logs` | Builds one timeline from `vrserver.txt`, `vrcompositor.txt` and the app's log | 0 |
+| `sergulath logs` | Builds one timeline from `vrserver.txt`, `vrcompositor.txt` and the app's log (local time with its offset) | 0, done |
 | `sergulath steamvr status` | Reports SteamVR: running or not, whether `vrmonitor` runs, its version, the headset's and controllers' state | 0, done |
-| `sergulath steamvr start` / `wait` | Starts SteamVR, waits for the headset | 0 |
-| `sergulath settings show` / `set` / `restore` (PROCULO) | Standby and sleep settings, with a snapshot to restore | 0 |
+| `sergulath steamvr start` / `wait` / `stop` | Starts SteamVR through Steam, waits for the headset (connected or tracking), quits SteamVR | 0, done |
+| `sergulath settings show` / `set` / `restore` / `pending` | SteamVR settings (`section.name=value`), changed only after a snapshot of the keys, restored key by key | 0, done |
 | `sergulath view save` / `screenshot` | Saves what the headset shows: the VR View window (scene and overlays) or a SteamVR screenshot (scene only). See [What the PC can see](#what-the-pc-can-see) | 0, prototype |
 | `sergulath caption sample start` / `stop`, `sergulath caption check` | Sends the app's sample caption from the session side, and checks that the caption overlay renders | 0, done |
 | `sergulath frame overlays` | Reads a standalone headset's own system overlays over SSH (state, and images where readable) | 1, prototype |

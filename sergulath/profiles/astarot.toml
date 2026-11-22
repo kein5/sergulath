@@ -6,6 +6,8 @@ name = "ASTAROT"
 process = "vrct-vox.exe"
 exe = "%LOCALAPPDATA%\\ASTAROT\\vrct-vox.exe"  # the default install folder (0.5.1 and later)
 main_window_title = "ASTAROT"
+# The app's log (UTC times), for `sergulath logs`.
+log = "%LOCALAPPDATA%\\ASTAROT\\logs\\process.log"
 
 # Which overlay shows which caption.
 [captions]

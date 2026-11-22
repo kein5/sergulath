@@ -119,6 +119,10 @@ VR表示にシーンが映るのは、ヘッドセットが位置を出してい
 - クライアントの道具には Python 3.11 以降と [pyopenvr](https://github.com/cmbruns/pyopenvr)
 - 仮想のドライバー（段階2）には MSVC の C++ のツールチェーン。CI でビルドする
 
+## 変更の入れ方
+
+ブランチの運用は ASTAROT と同じです。作業用のブランチで変更し、`develop`（既定のブランチ）へのプルリクエストにして、マージコミットでマージします。`main` はリリースのときだけ `develop` から更新します。コミットメッセージは Conventional Commits に従います。
+
 ## ライセンス
 
 MIT です（[LICENSE](../LICENSE)）。pyopenvr と OpenVR SDK はそれぞれのライセンス（BSD-3-Clause）のままです（[NOTICE.md](../NOTICE.md)）。

@@ -23,6 +23,17 @@ class PngTest(unittest.TestCase):
             png.encode_rgba(2, 2, b"\x00" * 4)
 
 
+class BlankCaptureTest(unittest.TestCase):
+    def test_one_colour_is_blank_and_two_are_not(self):
+        from sergulath.core import window_capture
+
+        black = bytes([0, 0, 0, 255]) * 1000
+        self.assertTrue(window_capture.is_blank(black))
+        mixed = bytearray(black)
+        mixed[0:3] = b"\xff\x00\x00"
+        self.assertFalse(window_capture.is_blank(bytes(mixed)))
+
+
 class ProfileTest(unittest.TestCase):
     def test_astarot_lists_current_and_legacy_overlay_keys(self):
         profile = profiles.load("astarot")

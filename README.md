@@ -59,11 +59,26 @@ Each part is a subcommand of `sergulath`. Commands that change something have a 
 | `sergulath logs` | Builds one timeline from `vrserver.txt`, `vrcompositor.txt` and the app's log | 0 |
 | `sergulath steamvr status` / `start` / `wait` | Reports SteamVR (including whether `vrmonitor` runs), starts it, waits for the headset | 0 |
 | `sergulath settings show` / `set` / `restore` (PROCULO) | Standby and sleep settings, with a snapshot to restore | 0 |
-| `sergulath view open` / `save` | Opens the VR view and saves its image | 1 |
+| `sergulath view save` / `screenshot` | Saves what the headset shows: the VR View window (scene and overlays) or a SteamVR screenshot (scene only). See [What the PC can see](#what-the-pc-can-see) | 0, prototype |
+| `sergulath view open` | Opens the VR View | 1 |
 | `sergulath chaperone show` / `apply` / `restore` | The play area; `apply` uses the chaperone setup API's working copy for this session only | 1 |
 | `sergulath driver register` / `send` / `unregister` | A virtual controller (an OpenVR driver) for unattended input, registered only for a check | 2, if stage 1 shows it is needed |
 
 Stage 0 turns the scripts that already exist into commands. Stage 1 measures how far a real headset can be checked without a person. Stage 2 is decided from those measurements.
+
+## What the PC can see
+
+Measured on 2026-11-22 with a Steam Frame over Steam Link, SteamVR 2.19.4 and VRChat, by showing a checkerboard test overlay in front of the headset:
+
+| Route | Scene app | Overlays (captions, test overlay) | The headset's own screens (Steam Frame "outside the play area" camera screen) |
+|---|---|---|---|
+| VR View window (`sergulath view save`) | yes | yes | no: the view went black while the headset showed that screen |
+| SteamVR screenshot API (`sergulath view screenshot`) | yes | no | no |
+| Overlay pixels (`sergulath overlay --save`) | no | one overlay at a time | no |
+
+A standalone headset draws its system screens on its own side; they do not pass through the PC's compositor, so no PC-side route includes them. Seeing them needs a capture on the headset itself, which these tools do not have yet.
+
+The VR View shows the scene only while the headset tracks. When a Frame on a desk loses tracking (tracking result `calibrating_out_of_range`), the view goes black; `view save` then reports the image as blank and exits with 1.
 
 ## Ground rules
 

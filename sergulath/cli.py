@@ -27,7 +27,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"sergulath {__version__}")
     sub = parser.add_subparsers(dest="command", required=True, metavar="COMMAND")
     for command in COMMANDS:
-        p = sub.add_parser(command.NAME, help=command.HELP, description=command.__doc__)
+        p = sub.add_parser(command.NAME, help=command.HELP, description=command.__doc__,
+                           formatter_class=argparse.RawDescriptionHelpFormatter)
         command.add_arguments(p)
         p.set_defaults(run=command.run)
     return parser

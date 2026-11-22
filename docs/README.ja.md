@@ -59,11 +59,26 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 | `sergulath logs` | `vrserver.txt`、`vrcompositor.txt`、アプリのログから1本の時系列を作る | 0 |
 | `sergulath steamvr status` / `start` / `wait` | SteamVR の状態を示す（`vrmonitor` が動いているかを含む）。起動し、ヘッドセットの接続を待つ | 0 |
 | `sergulath settings show` / `set` / `restore`（PROCULO） | 待機とスリープの設定。写しを取ってから変え、写しから元に戻せる | 0 |
-| `sergulath view open` / `save` | VR表示を開き、画像を保存する | 1 |
+| `sergulath view save` / `screenshot` | ヘッドセットに映っているものを保存する。VR表示のウィンドウ（シーンとオーバーレイ）か、SteamVR のスクリーンショット（シーンだけ）。[PC から見えるもの](#pc-から見えるもの)を参照 | 0（試作） |
+| `sergulath view open` | VR表示を開く | 1 |
 | `sergulath chaperone show` / `apply` / `restore` | プレイエリア。`apply` は chaperone の設定 API の作業用の写しを使い、今の起動のあいだだけ反映する | 1 |
 | `sergulath driver register` / `send` / `unregister` | 人がいなくても入力できる仮想コントローラー（OpenVR のドライバー）。確認のあいだだけ登録する | 2（段階1で必要とわかったら） |
 
 段階0ではスクリプトとしてすでにある道具をコマンドにし、段階1では実機のヘッドセットを人なしでどこまで確かめられるかを測ります。段階2はその結果を見て決めます。
+
+## PC から見えるもの
+
+2026-11-22 に、Steam Link でつないだ Steam Frame、SteamVR 2.19.4、VRChat で測りました。ヘッドセットの前に市松模様の試験用のオーバーレイを出して、どの経路に写るかを確かめています。
+
+| 経路 | シーン（アプリの映像） | オーバーレイ（字幕、試験用のオーバーレイ） | ヘッドセット自身の画面（Steam Frame の「プレイエリア外」のカメラの画面） |
+|---|---|---|---|
+| VR表示のウィンドウ（`sergulath view save`） | 写る | 写る | 写らない。ヘッドセットがその画面を出している間、VR表示は黒くなった |
+| SteamVR のスクリーンショットの API（`sergulath view screenshot`） | 写る | 写らない | 写らない |
+| オーバーレイの画素（`sergulath overlay --save`） | 写らない | 1つずつ写る | 写らない |
+
+単体で動くヘッドセットは、システムの画面をヘッドセットの側で描きます。PC のコンポジターを通らないので、PC 側のどの経路にも写りません。見るにはヘッドセットの側での取得が要り、この道具にはまだその手段がありません。
+
+VR表示にシーンが映るのは、ヘッドセットが位置を出している間だけです。机に置いた Frame が位置を見失う（追跡の状態が `calibrating_out_of_range`）と黒くなります。そのとき `view save` は画像が空だと報告し、終了コード1で終わります。
 
 ## 守ること
 

@@ -25,19 +25,29 @@ class OverlayState:
     drawn_px: int = 0  # pixels with non-zero alpha
     image: Path | None = None
     error: str = ""
+    placement: dict | None = None  # with read_placement: see core.placement
 
     def to_dict(self) -> dict:
         data = asdict(self)
         data["image"] = str(self.image) if self.image else None
+        if data["placement"] is None:
+            del data["placement"]
         return data
 
 
 def capture(openvr, keys: list[str], out_dir: Path | None = None, retries: int = 5,
-            read_pixels: bool | None = None) -> list[OverlayState]:
+            read_pixels: bool | None = None, read_placement: bool = False) -> list[OverlayState]:
     """Look up each key. With `read_pixels` (on when `out_dir` is given), count each overlay's
-    drawn pixels; with `out_dir`, also save them as `<key>.png`."""
+    drawn pixels; with `out_dir`, also save them as `<key>.png`. With `read_placement`, also
+    read where each overlay sits (core.placement)."""
     overlay = openvr.IVROverlay()
     states = []
+    poses = None
+    if read_placement:
+        from . import placement
+
+        poses = openvr.VRSystem().getDeviceToAbsoluteTrackingPose(
+            openvr.TrackingUniverseStanding, 0, openvr.k_unMaxTrackedDeviceCount)
     if read_pixels is None:
         read_pixels = out_dir is not None
     buffer = (ctypes.c_uint8 * _MAX_BYTES)() if read_pixels else None
@@ -56,6 +66,8 @@ def capture(openvr, keys: list[str], out_dir: Path | None = None, retries: int =
             alpha=float(overlay.getOverlayAlpha(handle)),
             width_m=float(overlay.getOverlayWidthInMeters(handle)),
         )
+        if read_placement:
+            state.placement = placement.read(openvr, overlay, handle, poses).to_dict()
         if buffer is not None:
             # A read can fail while the app is replacing the overlay's image (a caption that
             # updates every second), so try a few times before reporting.
@@ -87,4 +99,8 @@ def describe(state: OverlayState, label: str = "") -> str:
         text += f" image={state.width_px}x{state.height_px} drawn_px={state.drawn_px} -> {state.image}"
     if state.error:
         text += f" ({state.error})"
+    if state.placement is not None:
+        from . import placement
+
+        text += "\n  " + placement.describe(placement.Placement(**state.placement))
     return text

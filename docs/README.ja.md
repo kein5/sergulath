@@ -36,6 +36,10 @@ sergulath watch --frame
 
 # アプリのオーバーレイの有無、表示、透明度、幅を表示する。--save を付けると画素も PNG で保存する
 sergulath overlay --profile astarot --save records/overlays
+# --placement：各オーバーレイが何に付いているか（頭、どちらの手、部屋）と、その結果どこにあるか
+sergulath overlay --placement
+# 手首のランチャーを時間で追う：装着中に手に付いて、見えるようになるか
+sergulath watch --count 120 --interval 1 --overlay ASTAROT3
 
 # 組み合わせの例：複数行の字幕のオーバーレイが、いま表示されているか
 sergulath overlay --format json | jq -e 'select(.key == "ASTAROT1") | .visible'
@@ -72,7 +76,7 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 | コマンド | 受け持つこと | 段階 |
 |---|---|---|
 | `sergulath watch` | ヘッドセットとコントローラーの接続、位置の有無、追跡の状態、ヘッドセットの活動の状態を一定の間隔で記録する | 0（済み） |
-| `sergulath overlay` | アプリのオーバーレイを一覧にし、画素を保存する（`IVROverlay::GetOverlayImageData`） | 0（済み） |
+| `sergulath overlay` | アプリのオーバーレイを一覧にし、画素を保存する（`IVROverlay::GetOverlayImageData`）。`--placement` で付いている先と位置を読み、`watch --overlay` で時間を追って記録する | 0（済み） |
 | `sergulath profiles` | 同梱のアプリのプロファイル（アプリと版ごとの情報。まず ASTAROT のもの）を一覧にする | 0（済み） |
 | `sergulath logs` | `vrserver.txt`、`vrcompositor.txt`、アプリのログから1本の時系列を作る | 0 |
 | `sergulath steamvr status` | SteamVR が動いているか、`vrmonitor` が動いているか、版、ヘッドセットとコントローラーの状態を示す | 0（済み） |

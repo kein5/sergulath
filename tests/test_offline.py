@@ -64,6 +64,93 @@ class ProfileTest(unittest.TestCase):
         self.assertEqual(profiles.overlay_keys(profile, legacy=True), [f"VRCT{i}" for i in range(5)])
 
 
+class PlacementTest(unittest.TestCase):
+    IDENTITY = [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]]
+
+    def test_composing_puts_the_offset_in_the_device_frame(self):
+        from sergulath.core import placement
+
+        # A device at (1, 1, 0) turned 90 degrees about y; the overlay 0.1 m along its -z.
+        device = [[0.0, 0.0, 1.0, 1.0], [0.0, 1.0, 0.0, 1.0], [-1.0, 0.0, 0.0, 0.0]]
+        offset = [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, -0.1]]
+        world = placement.multiply(device, offset)
+        self.assertEqual([round(v, 6) for v in placement.translation(world)], [0.9, 1.0, 0.0])
+        self.assertEqual(placement.yaw_pitch_roll(device)[0], 90.0)
+
+    def test_a_hand_overlay_without_a_hand_pose_has_no_world_position(self):
+        from types import SimpleNamespace
+
+        from sergulath.core import placement
+
+        def pose(valid, at):
+            m = [row[:] for row in self.IDENTITY]
+            for r in range(3):
+                m[r][3] = at[r]
+            return SimpleNamespace(bPoseIsValid=valid, mDeviceToAbsoluteTracking=m)
+
+        poses = [pose(True, [0.0, 1.6, 0.0]), pose(False, [0.0, 0.0, 0.0]), pose(True, [0.2, 1.0, -0.3])]
+
+        class System:
+            def getTrackedDeviceClass(self, index):
+                return 1 if index == 0 else 2
+
+            def getControllerRoleForTrackedDeviceIndex(self, index):
+                return index
+
+        class OpenVR:
+            k_unTrackedDeviceIndex_Hmd = 0
+
+            @staticmethod
+            def VRSystem():
+                return System()
+
+        offset = [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.05], [0.0, 0.0, 1.0, 0.0]]
+
+        class Overlay:
+            def __init__(self, device):
+                self.device = device
+
+            def getOverlayTransformType(self, handle):
+                return 1
+
+            def getOverlayTransformTrackedDeviceRelative(self, handle):
+                return self.device, offset
+
+            def getOverlayTextureBounds(self, handle):
+                return SimpleNamespace(uMin=0.0, vMin=0.5, uMax=1.0, vMax=1.0)
+
+        left = placement.read(OpenVR, Overlay(1), "h", poses)
+        self.assertEqual((left.device, left.device_pose_valid, left.world_m), ("controller/left", False, None))
+        right = placement.read(OpenVR, Overlay(2), "h", poses)
+        self.assertEqual(right.world_m, [0.2, 1.05, -0.3])
+        self.assertEqual(right.texture_bounds, [0.0, 0.5, 1.0, 1.0])
+        self.assertAlmostEqual(right.head_distance_m, round((0.2 ** 2 + 0.55 ** 2 + 0.3 ** 2) ** 0.5, 3))
+        self.assertIn("world unknown (no pose)", placement.describe(left))
+
+    def test_an_absolute_overlay_in_the_standing_space_is_where_it_says(self):
+        from types import SimpleNamespace
+
+        from sergulath.core import placement
+
+        class OpenVR:
+            k_unTrackedDeviceIndex_Hmd = 0
+
+            @staticmethod
+            def VRSystem():
+                return None
+
+        class Overlay:
+            def getOverlayTransformType(self, handle):
+                return 0
+
+            def getOverlayTransformAbsolute(self, handle):
+                return 1, PlacementTest.IDENTITY
+
+        poses = [SimpleNamespace(bPoseIsValid=False, mDeviceToAbsoluteTracking=self.IDENTITY)]
+        place = placement.read(OpenVR, Overlay(), "h", poses)
+        self.assertEqual((place.transform, place.universe, place.world_m), ("absolute", "standing", [0.0, 0.0, 0.0]))
+
+
 class SteamVRGuardTest(unittest.TestCase):
     def test_both_server_and_compositor_are_required(self):
         self.assertEqual(steamvr.missing_processes({"vrserver.exe", "vrcompositor.exe"}), [])

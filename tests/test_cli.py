@@ -132,6 +132,25 @@ class WatchFrameTest(unittest.TestCase):
         self.assertIn("frame: unreachable (ssh failed)", out)
 
 
+class WatchOverlayTest(unittest.TestCase):
+    def test_each_sample_names_the_overlay_its_alpha_and_what_it_follows(self):
+        from sergulath.core import overlay, watch
+
+        sample = watch.DeviceSample("t0", 0, 0, "hmd", "-", True, True, "running_ok", "user_interaction")
+        state = overlay.OverlayState("ASTAROT3", True, True, 0.0, 0.18, placement={
+            "transform": "absolute", "world_m": [0.0, 0.0, 0.0], "head_distance_m": 1.6})
+        with mock.patch.object(steamvr, "background_client", _fake_client), \
+                mock.patch.object(watch, "sample_devices", lambda openvr, n: [sample]), \
+                mock.patch.object(overlay, "capture", lambda openvr, keys, **kw: [state]):
+            code, out, _ = _run(["watch", "--count", "1", "--overlay", "ASTAROT3"])
+            self.assertEqual(code, output.OK)
+            self.assertIn("ASTAROT3 visible=True alpha=0.00 absolute at [0.0, 0.0, 0.0] 1.6 m from head", out)
+            code, out, _ = _run(["watch", "--count", "1", "--overlay", "ASTAROT3", "--format", "json"])
+        records = [json.loads(line) for line in out.splitlines()]
+        self.assertEqual([r["source"] for r in records], ["steamvr", "overlay"])
+        self.assertEqual(records[1]["placement"]["transform"], "absolute")
+
+
 class SteamVRStatusCommandTest(unittest.TestCase):
     def test_not_running_is_exit_code_1_without_connecting(self):
         from sergulath.core import steamvr_status

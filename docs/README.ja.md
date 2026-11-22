@@ -115,7 +115,7 @@ VR表示にシーンが映るのは、ヘッドセットが位置を出してい
 
 ## 必要なもの
 
-- SteamVR が入った Windows 10 または 11
+- SteamVR が入った Windows 10 または 11（CI は単体テストを Windows と Linux で動かす）
 - クライアントの道具には Python 3.11 以降と [pyopenvr](https://github.com/cmbruns/pyopenvr)
 - 仮想のドライバー（段階2）には MSVC の C++ のツールチェーン。CI でビルドする
 

@@ -115,7 +115,7 @@ The VR View shows the scene only while the headset tracks. When a Frame on a des
 
 ## Requirements
 
-- Windows 10 or 11 with SteamVR
+- Windows 10 or 11 with SteamVR (CI runs the unit tests on Windows and Linux)
 - Python 3.11 or later and [pyopenvr](https://github.com/cmbruns/pyopenvr) for the client tools
 - For the virtual driver (stage 2): a C++ toolchain with MSVC; CI builds it
 

@@ -30,6 +30,9 @@ sergulath profiles                         # 同梱のアプリのプロファ�
 # ヘッドセットとコントローラーを1分ごとに20分間（21回）記録する（接続、位置の有無、追跡の状態、ヘッドセットの活動の状態）
 sergulath watch --csv records/watch.csv
 
+# 同じ記録に加えて、Steam Frame が自分の画面（「プレイエリア外」のカメラの画面など）を出しているかも SSH で読む
+sergulath watch --frame
+
 # アプリのオーバーレイの有無、表示、透明度、幅を表示する。--save を付けると画素も PNG で保存する
 sergulath overlay --profile astarot --save records/overlays
 

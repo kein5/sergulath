@@ -30,6 +30,9 @@ sergulath profiles                         # the bundled app profiles and their 
 # Headset and controllers once a minute for 20 minutes (21 samples): connection, pose, tracking result, headset activity
 sergulath watch --csv records/watch.csv
 
+# The same, plus whether a Steam Frame is showing its own screens (over SSH; e.g. the outside-the-play-space camera view)
+sergulath watch --frame
+
 # An app's overlays: found, shown, alpha, width; --save also writes their pixels as PNG
 sergulath overlay --profile astarot --save records/overlays
 

@@ -119,6 +119,10 @@ The VR View shows the scene only while the headset tracks. When a Frame on a des
 - Python 3.11 or later and [pyopenvr](https://github.com/cmbruns/pyopenvr) for the client tools
 - For the virtual driver (stage 2): a C++ toolchain with MSVC; CI builds it
 
+## Contributing
+
+Branches follow ASTAROT's: work on a feature branch and open a pull request into `develop` (the default branch), merged with a merge commit; `main` is updated from `develop` only for releases. Commit messages follow Conventional Commits.
+
 ## License
 
 MIT, see [LICENSE](LICENSE). pyopenvr and the OpenVR SDK keep their own license (BSD-3-Clause); see [NOTICE.md](NOTICE.md).

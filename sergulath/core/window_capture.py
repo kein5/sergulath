@@ -29,7 +29,8 @@ class Window:
     minimized: bool
 
 
-def _process_name(pid: int) -> str:
+def full_process_path(pid: int) -> str:
+    """The executable path of a process, or "" when it cannot be read."""
     handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
     if not handle:
         return ""
@@ -37,10 +38,14 @@ def _process_name(pid: int) -> str:
         size = wintypes.DWORD(1024)
         buf = ctypes.create_unicode_buffer(size.value)
         if kernel32.QueryFullProcessImageNameW(handle, 0, buf, ctypes.byref(size)):
-            return buf.value.rsplit("\\", 1)[-1].lower()
+            return buf.value
         return ""
     finally:
         kernel32.CloseHandle(handle)
+
+
+def _process_name(pid: int) -> str:
+    return full_process_path(pid).rsplit("\\", 1)[-1].lower()
 
 
 def windows(process: str | None = None) -> list[Window]:

@@ -34,6 +34,29 @@ class BlankCaptureTest(unittest.TestCase):
         self.assertFalse(window_capture.is_blank(bytes(mixed)))
 
 
+class SteamVRStatusTest(unittest.TestCase):
+    def test_version_is_the_last_startup_line(self):
+        from sergulath.core import steamvr_status
+
+        log = ("Sun Nov 22 2026 09:20:08 [Info] - vrserver 2.19.3 startup with PID=1\n"
+               "Sun Nov 22 2026 10:42:06 [Info] - vrserver 2.19.4 startup with PID=2\n")
+        self.assertEqual(steamvr_status.version_from_log(log), "2.19.4")
+        self.assertIsNone(steamvr_status.version_from_log("nothing here"))
+
+    def test_logs_folder_is_found_above_the_executable(self):
+        import tempfile
+        from pathlib import Path
+
+        from sergulath.core import steamvr_status
+
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            (root / "logs").mkdir()
+            (root / "logs" / "vrserver.txt").write_text("", encoding="utf-8")
+            exe = root / "steamapps" / "common" / "SteamVR" / "bin" / "win64" / "vrserver.exe"
+            self.assertEqual(steamvr_status.logs_folder(exe), root / "logs")
+
+
 class ProfileTest(unittest.TestCase):
     def test_astarot_lists_current_and_legacy_overlay_keys(self):
         profile = profiles.load("astarot")

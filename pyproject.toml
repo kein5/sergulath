@@ -1,0 +1,22 @@
+[project]
+name = "sergulath"
+version = "0.1.0"
+description = "Tools for operating and checking SteamVR overlay apps on a real headset"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE", "NOTICE.md"]
+requires-python = ">=3.11"
+dependencies = ["openvr>=2.5"]
+
+[project.scripts]
+sergulath = "sergulath.cli:main"
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["sergulath*"]
+
+[tool.setuptools.package-data]
+sergulath = ["profiles/*.toml"]

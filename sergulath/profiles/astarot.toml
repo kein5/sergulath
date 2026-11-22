@@ -1,0 +1,19 @@
+# ASTAROT (kein5/astarot). Facts the tools need about the app, per app version.
+
+name = "ASTAROT"
+
+# Overlay keys, in the app's order (native/vr-overlay, Surface::ALL).
+# 0.6 and later: ASTAROT0..4. Up to 0.5.x the keys were VRCT0..4.
+[overlays]
+ASTAROT0 = "caption, one line (head)"
+ASTAROT1 = "caption, multiple lines (hand)"
+ASTAROT2 = "VR panel"
+ASTAROT3 = "launcher"
+ASTAROT4 = "popup"
+
+[legacy_overlays]
+VRCT0 = "caption, one line (head), up to 0.5.x"
+VRCT1 = "caption, multiple lines (hand), up to 0.5.x"
+VRCT2 = "VR panel, up to 0.5.x"
+VRCT3 = "launcher, up to 0.5.x"
+VRCT4 = "popup, up to 0.5.x"

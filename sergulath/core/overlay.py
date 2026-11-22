@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ctypes
+import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -31,11 +32,15 @@ class OverlayState:
         return data
 
 
-def capture(openvr, keys: list[str], out_dir: Path | None) -> list[OverlayState]:
-    """Look up each key; with `out_dir`, also save each overlay's pixels as `<key>.png`."""
+def capture(openvr, keys: list[str], out_dir: Path | None = None, retries: int = 5,
+            read_pixels: bool | None = None) -> list[OverlayState]:
+    """Look up each key. With `read_pixels` (on when `out_dir` is given), count each overlay's
+    drawn pixels; with `out_dir`, also save them as `<key>.png`."""
     overlay = openvr.IVROverlay()
     states = []
-    buffer = (ctypes.c_uint8 * _MAX_BYTES)() if out_dir else None
+    if read_pixels is None:
+        read_pixels = out_dir is not None
+    buffer = (ctypes.c_uint8 * _MAX_BYTES)() if read_pixels else None
     if out_dir:
         out_dir.mkdir(parents=True, exist_ok=True)
     for key in keys:
@@ -52,16 +57,23 @@ def capture(openvr, keys: list[str], out_dir: Path | None) -> list[OverlayState]
             width_m=float(overlay.getOverlayWidthInMeters(handle)),
         )
         if buffer is not None:
-            try:
-                width, height = overlay.getOverlayImageData(handle, buffer, _MAX_BYTES)[:2]
-                rgba = bytes(buffer[: width * height * 4])
-                alpha = rgba[3::4]
-                state.width_px, state.height_px = width, height
-                state.drawn_px = len(alpha) - alpha.count(0)
-                state.image = out_dir / f"{key}.png"
-                png.write_rgba(state.image, width, height, rgba)
-            except Exception as e:  # noqa: BLE001 - report and go on with the other overlays
-                state.error = f"image: {e}"
+            # A read can fail while the app is replacing the overlay's image (a caption that
+            # updates every second), so try a few times before reporting.
+            for attempt in range(retries):
+                try:
+                    width, height = overlay.getOverlayImageData(handle, buffer, _MAX_BYTES)[:2]
+                    rgba = bytes(buffer[: width * height * 4])
+                    alpha = rgba[3::4]
+                    state.width_px, state.height_px = width, height
+                    state.drawn_px = len(alpha) - alpha.count(0)
+                    if out_dir:
+                        state.image = out_dir / f"{key}.png"
+                        png.write_rgba(state.image, width, height, rgba)
+                    state.error = ""
+                    break
+                except Exception as e:  # noqa: BLE001 - report and go on with the other overlays
+                    state.error = f"image: {type(e).__name__} {e}".rstrip()
+                    time.sleep(0.2)
         states.append(state)
     return states
 

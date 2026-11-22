@@ -1,6 +1,6 @@
 """One module per subcommand. Each defines `NAME`, `HELP`, `add_arguments(parser)` and
 `run(args) -> int` (an exit code from `sergulath.output`)."""
 
-from . import overlay, profiles, view, watch
+from . import caption, overlay, profiles, view, watch
 
-COMMANDS = (watch, overlay, view, profiles)
+COMMANDS = (watch, overlay, view, caption, profiles)

@@ -37,7 +37,21 @@ sergulath overlay --profile astarot --save records/overlays
 sergulath overlay --format json | jq -e 'select(.key == "ASTAROT1") | .visible'
 ```
 
-`watch`、`overlay`、`profiles` は読み取りだけをします。`watch` と `overlay` はすでに動いている SteamVR（`vrserver` と `vrcompositor`）にバックグラウンドの OpenVR クライアントとしてつなぎます。
+### 人が PC の前にいなくても字幕を確かめる
+
+アプリと SteamVR が動いていれば使えます。アプリがトレイにいても、手で何かを開く必要はありません。
+
+```sh
+sergulath caption sample start              # メイン画面を出し、字幕の設定のページを開き、アプリのサンプルを始める
+sergulath caption check --view records/caption.png   # 一行の字幕のオーバーレイが表示され、描かれていれば終了コード0
+sergulath caption sample start --line multi # 複数行の字幕で同じことをする（左手に付く）
+sergulath caption check --line multi
+sergulath caption sample stop               # サンプルを止め、設定のページを閉じる
+```
+
+仕組み：アプリの実行ファイルをもう一度起動すると、動いているアプリに引き継がれ、そのアプリがメイン画面を出します（アプリは1つのまま）。そのあと、Windows の UI Automation でボタンをアクセシビリティ上の名前で押します。名前はプロファイルに UI の言語ごとに書いてあります（ASTAROT は `[ui.ja]`）。サンプルはアプリ自身の機能で、設定のページを開いている間、字幕を1秒ごとに送ります。設定は変えません。`caption check` は字幕のオーバーレイが表示中で、透明でなく（字幕は最後の行から数秒で消えます）、描かれているかを読みます。VR表示に字幕が映るのは、ヘッドセットが位置を出している間だけです。机に置いた Steam Frame は位置を見失って VR表示が黒くなり、`--view` はそれを空の画像として記録します。
+
+`watch`、`overlay`、`profiles`、`caption check` は読み取りだけをします。`caption sample` はアプリ自身のサンプルのボタンを押します。`watch` と `overlay` はすでに動いている SteamVR（`vrserver` と `vrcompositor`）にバックグラウンドの OpenVR クライアントとしてつなぎます。
 
 記録には部屋やデスクトップ、ファイルの名前が写ることがあります。`records/` は git の管理から外しています。
 
@@ -60,6 +74,7 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 | `sergulath steamvr status` / `start` / `wait` | SteamVR の状態を示す（`vrmonitor` が動いているかを含む）。起動し、ヘッドセットの接続を待つ | 0 |
 | `sergulath settings show` / `set` / `restore`（PROCULO） | 待機とスリープの設定。写しを取ってから変え、写しから元に戻せる | 0 |
 | `sergulath view save` / `screenshot` | ヘッドセットに映っているものを保存する。VR表示のウィンドウ（シーンとオーバーレイ）か、SteamVR のスクリーンショット（シーンだけ）。[PC から見えるもの](#pc-から見えるもの)を参照 | 0（試作） |
+| `sergulath caption sample start` / `stop`、`sergulath caption check` | アプリのサンプルの字幕をセッションの側から送り、字幕のオーバーレイが描かれているかを確かめる | 0（済み） |
 | `sergulath view open` | VR表示を開く | 1 |
 | `sergulath chaperone show` / `apply` / `restore` | プレイエリア。`apply` は chaperone の設定 API の作業用の写しを使い、今の起動のあいだだけ反映する | 1 |
 | `sergulath driver register` / `send` / `unregister` | 人がいなくても入力できる仮想コントローラー（OpenVR のドライバー）。確認のあいだだけ登録する | 2（段階1で必要とわかったら） |

@@ -71,6 +71,39 @@ class OverlayCommandTest(unittest.TestCase):
         self.assertIn("VRCT0", out)
 
 
+class CaptionCheckTest(unittest.TestCase):
+    def _check(self, alpha, drawn):
+        class Overlay(_FakeOverlay):
+            shown = {"ASTAROT0": (True, alpha, 1.0)}
+
+            def getOverlayImageData(self, handle, buf, size):
+                for i in range(3, 16, 4):
+                    buf[i] = 255 if drawn else 0
+                return (2, 2)
+
+        class OpenVR(_FakeOpenVR):
+            @staticmethod
+            def IVROverlay():
+                return Overlay()
+
+        @contextlib.contextmanager
+        def client():
+            yield OpenVR
+
+        with mock.patch.object(steamvr, "background_client", client):
+            return _run(["caption", "check", "--format", "json"])
+
+    def test_a_shown_drawn_caption_passes(self):
+        code, out, _ = self._check(alpha=1.0, drawn=True)
+        self.assertEqual(code, output.OK)
+        self.assertTrue(json.loads(out)["rendered"])
+
+    def test_a_faded_caption_fails_even_with_pixels_left(self):
+        code, out, _ = self._check(alpha=0.0, drawn=True)
+        self.assertEqual(code, output.NOT_MET)
+        self.assertFalse(json.loads(out)["rendered"])
+
+
 class ProfilesCommandTest(unittest.TestCase):
     def test_lists_astarot_without_steamvr(self):
         code, out, _ = _run(["profiles", "--format", "json"])

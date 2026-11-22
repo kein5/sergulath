@@ -37,7 +37,21 @@ sergulath overlay --profile astarot --save records/overlays
 sergulath overlay --format json | jq -e 'select(.key == "ASTAROT1") | .visible'
 ```
 
-`watch`, `overlay` and `profiles` only read. `watch` and `overlay` connect to a SteamVR that already runs (`vrserver` and `vrcompositor`) as a background OpenVR client.
+### Checking a caption without anyone at the PC
+
+The app must run and SteamVR must run. Nothing needs to be opened by hand, even when the app sits in the tray.
+
+```sh
+sergulath caption sample start              # bring up the main window, open the captions page, start the app's sample
+sergulath caption check --view records/caption.png   # exit 0 when the one-line caption overlay is shown and drawn
+sergulath caption sample start --line multi # the same for the multi-line caption (it hangs on the left hand)
+sergulath caption check --line multi
+sergulath caption sample stop               # stop the sample and leave the settings page
+```
+
+How it works: a second start of the app's executable hands over to the running app, which shows its main window (the app stays single). The buttons are then pressed through Windows UI Automation by their accessible names, which the profile lists per UI language (`[ui.ja]` for ASTAROT). The sample is the app's own: it sends a caption once a second while the settings page stays open, and changes no setting. `caption check` reads the caption overlay: shown, not transparent (a caption fades out a few seconds after the last line) and drawn. The VR View shows the caption only while the headset tracks; a Steam Frame left on a desk loses tracking and the view goes black, which `--view` records as blank.
+
+`watch`, `overlay`, `profiles` and `caption check` only read; `caption sample` presses the app's own sample button. `watch` and `overlay` connect to a SteamVR that already runs (`vrserver` and `vrcompositor`) as a background OpenVR client.
 
 Records can show a room, a desktop or file names; `records/` is ignored by git.
 
@@ -60,6 +74,7 @@ Each part is a subcommand of `sergulath`. Commands that change something have a 
 | `sergulath steamvr status` / `start` / `wait` | Reports SteamVR (including whether `vrmonitor` runs), starts it, waits for the headset | 0 |
 | `sergulath settings show` / `set` / `restore` (PROCULO) | Standby and sleep settings, with a snapshot to restore | 0 |
 | `sergulath view save` / `screenshot` | Saves what the headset shows: the VR View window (scene and overlays) or a SteamVR screenshot (scene only). See [What the PC can see](#what-the-pc-can-see) | 0, prototype |
+| `sergulath caption sample start` / `stop`, `sergulath caption check` | Sends the app's sample caption from the session side, and checks that the caption overlay renders | 0, done |
 | `sergulath view open` | Opens the VR View | 1 |
 | `sergulath chaperone show` / `apply` / `restore` | The play area; `apply` uses the chaperone setup API's working copy for this session only | 1 |
 | `sergulath driver register` / `send` / `unregister` | A virtual controller (an OpenVR driver) for unattended input, registered only for a check | 2, if stage 1 shows it is needed |

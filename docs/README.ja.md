@@ -63,6 +63,26 @@ sergulath caption sample stop               # サンプルを止め、設定の�
 
 記録には部屋やデスクトップ、ファイルの名前が写ることがあります。`records/` は git の管理から外しています。
 
+## オーバーレイを押す
+
+仮想コントローラーのドライバー（`driver/`。Rust で書いた SteamVR のドライバーの DLL）は、SteamVR に左手と右手のコントローラーを出します。SERGULATH は 127.0.0.1 の UDP でそれを動かし、ボタンを押します。登録するのは確認のあいだだけで（守ること 3）、`controller connect` を送るまでデバイスを足しません。
+
+```sh
+sergulath driver build --toolchain 1.100.0-x86_64-pc-windows-gnu   # 最初に1回。build/driver/sergulath に置く
+sergulath driver register --restart       # SteamVR はドライバーを起動のときに読む。状態の窓から終了し、Steam から起動し直す
+sergulath controller connect --hand left
+sergulath controller pose --hand left --position -0.2 1.1 -0.4   # ランチャーは左手に付く
+sergulath overlay press --overlay ASTAROT3 --button log --dry-run # 狙って、SteamVR 自身の当たり判定を表示する
+sergulath overlay press --overlay ASTAROT3 --button log           # トリガーも押す
+sergulath driver unregister --restart     # 普段の状態に戻す
+# 1つのコマンドのあいだだけ登録する（失敗しても解除する）:
+sergulath driver run --restart -- sergulath overlay press --overlay ASTAROT3 --button log
+```
+
+`GetControllerState` でボタンを読むアプリ（ASTAROT もそう）には、ドライバーのレガシーの割り当てを通して、トリガー（`k_EButton_SteamVR_Trigger`）、グリップ、アプリケーションメニューが届きます。システムボタンは SteamVR が自分で使います。
+
+2026-11-23 に、机の上に置いてスタンバイになった Steam Frame と SteamVR 2.19.4 で確かめました。ドライバーは Frame のドライバーと並んで読み込まれ、2つのコントローラーには正しい位置と左右の役割が付き、ASTAROT のランチャーは仮想の左手に付きました。ただし SteamVR の `ComputeOverlayIntersection` はどのオーバーレイにも当たりなしを返し、SERGULATH が自分で作った不透明なオーバーレイでも、オーバーレイのアプリとして呼んでも結果は同じです。ASTAROT のレーザーも同じ呼び出しを使うので、ヘッドセットがスタンバイのあいだは何も押せません。押す確認には、ヘッドセットが起きている必要があります。同じ状態で VR View も黒くなります。
+
 ## 作る理由
 
 VR の中でオーバーレイを確かめるには、ヘッドセットをかぶる人が要ります。机に置いた Steam Frame は位置を見失い、数分で待機に入り、コントローラーもいっしょに切れ、VR表示（ミラー）も黒くなります。SERGULATH はこうした確認を毎回同じ手順で行え、できるところは人がいなくても行えるようにする手順をまとめます。アプリごとのリポジトリに、その場かぎりのスクリプトとして散らばらないようにするためです。
@@ -87,7 +107,7 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 | `sergulath frame overlays` | 単体で動くヘッドセット自身のシステムのオーバーレイを SSH で読む（状態と、読めるものは画像） | 1（試作） |
 | `sergulath view open` | VR表示を開く | 1 |
 | `sergulath chaperone show` / `apply` / `restore` | プレイエリア。`apply` は chaperone の設定 API の作業用の写しを使い、今の起動のあいだだけ反映する | 1 |
-| `sergulath driver register` / `send` / `unregister` | 人がいなくても入力できる仮想コントローラー（OpenVR のドライバー）。確認のあいだだけ登録する | 2（段階1で必要とわかったら） |
+| `sergulath driver build` / `register` / `unregister` / `run` / `status` | 仮想コントローラーのドライバー（左手と右手を出す OpenVR のドライバー）。確認のあいだだけ登録する。[オーバーレイを押す](#オーバーレイを押す)を参照 | 2（試作。前倒し） |
 
 段階0ではスクリプトとしてすでにある道具をコマンドにし、段階1では実機のヘッドセットを人なしでどこまで確かめられるかを測ります。段階2はその結果を見て決めます。
 
@@ -126,7 +146,7 @@ VR表示にシーンが映るのは、ヘッドセットが位置を出してい
 
 - SteamVR が入った Windows 10 または 11（CI は単体テストを Windows と Linux で動かす）
 - クライアントの道具には Python 3.11 以降と [pyopenvr](https://github.com/cmbruns/pyopenvr)
-- 仮想のドライバー（段階2）には MSVC の C++ のツールチェーン。CI でビルドする
+- 仮想コントローラーのドライバーには Rust のツールチェーン（C++ のコンパイラーは要らない。ドライバーが自分で vtable を作る）。CI は Windows と Linux でビルドと試験をする。SteamVR で試したのは Windows だけ
 
 ## 変更の入れ方
 

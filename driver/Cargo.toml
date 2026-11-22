@@ -1,0 +1,17 @@
+[package]
+name = "sergulath-driver"
+version = "0.1.0"
+edition = "2021"
+description = "A SteamVR driver with two virtual controllers that SERGULATH moves and presses during a check"
+license = "MIT"
+publish = false
+
+[lib]
+name = "driver_sergulath"
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+
+[profile.release]
+# A panic must not cross into vrserver: every entry point catches it (see lib.rs).
+panic = "unwind"
+opt-level = 2

@@ -63,6 +63,26 @@ How it works: a second start of the app's executable hands over to the running a
 
 Records can show a room, a desktop or file names; `records/` is ignored by git.
 
+## Pressing an overlay
+
+The virtual controller driver (`driver/`, a SteamVR driver DLL written in Rust) gives SteamVR a left and a right controller that SERGULATH moves and presses over UDP on 127.0.0.1. It is registered only for a check (ground rule 3) and adds no device until `controller connect`.
+
+```sh
+sergulath driver build --toolchain 1.100.0-x86_64-pc-windows-gnu   # once; stages build/driver/sergulath
+sergulath driver register --restart       # SteamVR loads drivers at start: quit it through its status window, start it through Steam
+sergulath controller connect --hand left
+sergulath controller pose --hand left --position -0.2 1.1 -0.4   # the launcher follows the left hand
+sergulath overlay press --overlay ASTAROT3 --button log --dry-run # aim and report SteamVR's own hit test
+sergulath overlay press --overlay ASTAROT3 --button log           # and click the trigger
+sergulath driver unregister --restart     # back to an ordinary session
+# or, registered only around one command, also when it fails:
+sergulath driver run --restart -- sergulath overlay press --overlay ASTAROT3 --button log
+```
+
+Apps that read buttons with `GetControllerState` (ASTAROT does) get them through the driver's legacy binding: trigger (`k_EButton_SteamVR_Trigger`), grip and application menu. SteamVR keeps the system button for itself.
+
+Measured on 2026-11-23 (Steam Frame on a desk, in standby; SteamVR 2.19.4): the driver loads beside the Frame's, both controllers get valid poses and the left/right roles, and ASTAROT's launcher follows the virtual left hand. But SteamVR's `ComputeOverlayIntersection` answered no hit for every overlay, even an opaque one SERGULATH made itself and an app run as an overlay app. ASTAROT's laser uses the same call, so with the headset in standby nothing can be pressed; the check needs the headset awake. The VR View goes black in the same state.
+
 ## Why
 
 Checking an overlay app in VR needs someone in the headset. A Steam Frame on a desk loses its tracking, goes to standby after a few minutes and takes its controllers with it, and the VR view mirror goes black. SERGULATH gathers the steps that make such checks repeatable and, where possible, unattended, so they do not live as one-off scripts in each app's repository.
@@ -87,7 +107,7 @@ Each part is a subcommand of `sergulath`. Commands that change something have a 
 | `sergulath frame overlays` | Reads a standalone headset's own system overlays over SSH (state, and images where readable) | 1, prototype |
 | `sergulath view open` | Opens the VR View | 1 |
 | `sergulath chaperone show` / `apply` / `restore` | The play area; `apply` uses the chaperone setup API's working copy for this session only | 1 |
-| `sergulath driver register` / `send` / `unregister` | A virtual controller (an OpenVR driver) for unattended input, registered only for a check | 2, if stage 1 shows it is needed |
+| `sergulath driver build` / `register` / `unregister` / `run` / `status` | A virtual controller driver (an OpenVR driver with a left and a right hand), registered only for a check. See [Pressing an overlay](#pressing-an-overlay) | 2, prototype (brought forward) |
 
 Stage 0 turns the scripts that already exist into commands. Stage 1 measures how far a real headset can be checked without a person. Stage 2 is decided from those measurements.
 
@@ -126,7 +146,7 @@ The VR View shows the scene only while the headset tracks. When a Frame on a des
 
 - Windows 10 or 11 with SteamVR (CI runs the unit tests on Windows and Linux)
 - Python 3.11 or later and [pyopenvr](https://github.com/cmbruns/pyopenvr) for the client tools
-- For the virtual driver (stage 2): a C++ toolchain with MSVC; CI builds it
+- For the virtual controller driver: a Rust toolchain (no C++ compiler; the driver builds its vtables itself). CI builds and tests it on Windows and Linux; only Windows has been tried with SteamVR
 
 ## Contributing
 

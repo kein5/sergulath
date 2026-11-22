@@ -39,3 +39,22 @@ VRCT1 = "caption, multiple lines (hand), up to 0.5.x"
 VRCT2 = "VR panel, up to 0.5.x"
 VRCT3 = "launcher, up to 0.5.x"
 VRCT4 = "popup, up to 0.5.x"
+
+# The VR UI's laser (native/vr-overlay/src/pose.rs, LASER_PITCH_UP_DEG): it leaves the controller's
+# tip, tilted up by this much. A controller without a render model (SERGULATH's) has its tip at
+# its body.
+[laser]
+pitch_up_deg = 12.0
+
+# Spots on the VR UI, as (u, v): 0..1 from the left and the top of what the overlay shows.
+# Measured on 0.6.0-beta.2 from the VR page's layout (launcher region 880x128 at the page's
+# (10, 708), buttons 112x104 CSS px); a later version may move them.
+[buttons.ASTAROT3]
+translation = [0.077, 0.5]
+microphone = [0.214, 0.5]
+listen = [0.350, 0.5]
+ocr = [0.486, 0.5]
+log = [0.580, 0.5]
+language = [0.716, 0.5]
+inputs_outputs = [0.852, 0.5]
+vr_settings = [0.989, 0.5]  # the button runs past the launcher's region on 0.6.0-beta.2

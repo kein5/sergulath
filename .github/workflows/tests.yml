@@ -29,3 +29,9 @@ jobs:
           python -m pip install --disable-pip-version-check .
           sergulath --version
           sergulath profiles --format json
+      # The virtual controller driver (a SteamVR driver DLL, no dependencies). Only Windows loads it;
+      # Linux keeps the protocol and layout tests compiling.
+      - name: Driver tests and build
+        run: |
+          cargo test --manifest-path driver/Cargo.toml --locked
+          cargo build --manifest-path driver/Cargo.toml --release --lib --locked

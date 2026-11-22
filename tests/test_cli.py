@@ -104,6 +104,34 @@ class CaptionCheckTest(unittest.TestCase):
         self.assertFalse(json.loads(out)["rendered"])
 
 
+class WatchFrameTest(unittest.TestCase):
+    def _run_watch(self, overlay_states):
+        from sergulath.core import frame, watch
+
+        sample = watch.DeviceSample("t0", 0, 0, "hmd", "-", True, False, "calibrating_out_of_range", "standby")
+        with mock.patch.object(steamvr, "background_client", _fake_client), \
+                mock.patch.object(watch, "sample_devices", lambda openvr, n: [sample]), \
+                mock.patch.object(frame, "overlay_states", overlay_states):
+            return _run(["watch", "--count", "1", "--frame"])
+
+    def test_names_the_headset_screens_that_are_shown(self):
+        states = lambda target, keys, save: [  # noqa: E731
+            {"key": "XRService-CameraOverlay", "found": True, "visible": True},
+            {"key": "system.systemui", "found": True, "visible": False},
+        ]
+        code, out, _ = self._run_watch(states)
+        self.assertEqual(code, output.OK)
+        self.assertIn("frame: XRService-CameraOverlay shown", out)
+
+    def test_an_unreachable_headset_does_not_end_the_watch(self):
+        def fail(target, keys, save):
+            raise RuntimeError("ssh failed")
+
+        code, out, _ = self._run_watch(fail)
+        self.assertEqual(code, output.OK)
+        self.assertIn("frame: unreachable (ssh failed)", out)
+
+
 class ProfilesCommandTest(unittest.TestCase):
     def test_lists_astarot_without_steamvr(self):
         code, out, _ = _run(["profiles", "--format", "json"])

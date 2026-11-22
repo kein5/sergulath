@@ -36,6 +36,10 @@ sergulath watch --frame
 
 # An app's overlays: found, shown, alpha, width; --save also writes their pixels as PNG
 sergulath overlay --profile astarot --save records/overlays
+# --placement: what each overlay follows (headset, which hand, the room) and where that puts it
+sergulath overlay --placement
+# A wrist launcher over time: does it attach to the hand and fade in while the headset is worn?
+sergulath watch --count 120 --interval 1 --overlay ASTAROT3
 
 # Composing: is the multi-line caption overlay shown right now?
 sergulath overlay --format json | jq -e 'select(.key == "ASTAROT1") | .visible'
@@ -72,7 +76,7 @@ Each part is a subcommand of `sergulath`. Commands that change something have a 
 | Command | What it does | Stage |
 |---|---|---|
 | `sergulath watch` | Samples headset and controller connection, pose validity, tracking result and the headset's activity level at a fixed interval | 0, done |
-| `sergulath overlay` | Lists an app's overlays and saves their pixels (`IVROverlay::GetOverlayImageData`) | 0, done |
+| `sergulath overlay` | Lists an app's overlays and saves their pixels (`IVROverlay::GetOverlayImageData`); `--placement` reads what each follows and where it sits; `watch --overlay` samples them over time | 0, done |
 | `sergulath profiles` | Lists the bundled app profiles (per-app, per-version facts, starting with ASTAROT's) | 0, done |
 | `sergulath logs` | Builds one timeline from `vrserver.txt`, `vrcompositor.txt` and the app's log | 0 |
 | `sergulath steamvr status` | Reports SteamVR: running or not, whether `vrmonitor` runs, its version, the headset's and controllers' state | 0, done |

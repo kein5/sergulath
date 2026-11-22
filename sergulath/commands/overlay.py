@@ -16,6 +16,9 @@ def add_arguments(parser) -> None:
     parser.add_argument("--legacy", action="store_true", help="use the profile's older overlay keys")
     parser.add_argument("--key", action="append", help="overlay key to read instead of the profile's (repeatable)")
     parser.add_argument("--save", metavar="DIR", help="save each overlay's pixels as DIR/<key>.png")
+    parser.add_argument("--placement", action="store_true",
+                        help="also read where each overlay sits: what it follows (headset, which hand, the room), "
+                             "its offset, its world position and its distance from the head")
     output.add_format(parser)
 
 
@@ -24,7 +27,8 @@ def run(args) -> int:
     labels = profile.get("legacy_overlays" if args.legacy else "overlays", {})
     keys = args.key or list(labels)
     with steamvr.background_client() as openvr:
-        states = overlay.capture(openvr, keys, Path(args.save) if args.save else None)
+        states = overlay.capture(openvr, keys, Path(args.save) if args.save else None,
+                                 read_placement=args.placement)
     for state in states:
         label = labels.get(state.key, "")
         output.emit({**state.to_dict(), "label": label}, overlay.describe(state, label), args.format)

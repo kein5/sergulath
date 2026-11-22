@@ -3,6 +3,10 @@
 With --frame, each sample also reads a standalone headset's own system overlays over SSH (see
 `sergulath frame`), so a record shows when the headset put up its own screens. On a Steam
 Frame, `XRService-CameraOverlay` shown means the "outside the play space" camera screen is up.
+
+With --overlay KEY, each sample also reads that overlay of the app: shown, alpha, and what it
+follows and where (see `sergulath overlay --placement`), so a record shows whether, say, a
+launcher on the wrist ever attaches to the hand and fades in while the headset is worn.
 """
 
 from __future__ import annotations
@@ -11,7 +15,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from .. import output
-from ..core import frame, steamvr, watch
+from ..core import frame, overlay, steamvr, watch
 
 NAME = "watch"
 HELP = "log headset and controller connection, pose, tracking result and headset activity"
@@ -29,7 +33,32 @@ def add_arguments(parser) -> None:
     parser.add_argument("--frame", action="store_true",
                         help="also read the headset's own system overlays over SSH in every sample")
     parser.add_argument("--frame-host", default=frame.Target.host, help=f"headset address (default {frame.Target.host})")
+    parser.add_argument("--overlay", metavar="KEY", action="append",
+                        help="also read this overlay in every sample: shown, alpha and where it sits (repeatable), "
+                             "e.g. --overlay ASTAROT3 for ASTAROT's launcher")
     output.add_format(parser)
+
+
+def _overlay_part(openvr, keys: list[str], sample: int, when: str, fmt: str) -> str:
+    states = overlay.capture(openvr, keys, read_placement=True)
+    parts = []
+    for s in states:
+        if fmt == "json":
+            output.emit({"source": "overlay", "time": when, "sample": sample, **s.to_dict()}, "", "json")
+        if not s.found:
+            parts.append(f"{s.key} not found")
+            continue
+        place = s.placement or {}
+        if place.get("transform") == "tracked_device_relative":
+            where = f"on {place.get('device')}#{place.get('device_index')}"
+        else:
+            where = place.get("transform", "?")
+        if place.get("world_m") is not None:
+            where += f" at {place['world_m']}"
+        if place.get("head_distance_m") is not None:
+            where += f" {place['head_distance_m']} m from head"
+        parts.append(f"{s.key} visible={s.visible} alpha={s.alpha:.2f} {where}")
+    return "; ".join(parts)
 
 
 def _frame_part(target: frame.Target, sample: int, when: str, fmt: str) -> str:
@@ -61,10 +90,12 @@ def run(args) -> int:
                 if args.format == "json":
                     for s in samples:
                         output.emit({"source": "steamvr", **asdict(s)}, "", "json")
-                frame_text = _frame_part(target, samples[0].sample if samples else 0, when, args.format) if target else ""
+                number = samples[0].sample if samples else 0
+                overlay_text = _overlay_part(openvr, args.overlay, number, when, args.format) if args.overlay else ""
+                frame_text = _frame_part(target, number, when, args.format) if target else ""
                 if args.format != "json":
-                    line = f"{when} {watch.summary(samples)}".strip()
-                    output.emit({}, f"{line}; {frame_text}" if frame_text else line, "text")
+                    line = "; ".join(part for part in (f"{when} {watch.summary(samples)}".strip(), overlay_text, frame_text) if part)
+                    output.emit({}, line, "text")
     finally:
         if record:
             record.close()

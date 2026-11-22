@@ -75,6 +75,7 @@ Each part is a subcommand of `sergulath`. Commands that change something have a 
 | `sergulath settings show` / `set` / `restore` (PROCULO) | Standby and sleep settings, with a snapshot to restore | 0 |
 | `sergulath view save` / `screenshot` | Saves what the headset shows: the VR View window (scene and overlays) or a SteamVR screenshot (scene only). See [What the PC can see](#what-the-pc-can-see) | 0, prototype |
 | `sergulath caption sample start` / `stop`, `sergulath caption check` | Sends the app's sample caption from the session side, and checks that the caption overlay renders | 0, done |
+| `sergulath frame overlays` | Reads a standalone headset's own system overlays over SSH (state, and images where readable) | 1, prototype |
 | `sergulath view open` | Opens the VR View | 1 |
 | `sergulath chaperone show` / `apply` / `restore` | The play area; `apply` uses the chaperone setup API's working copy for this session only | 1 |
 | `sergulath driver register` / `send` / `unregister` | A virtual controller (an OpenVR driver) for unattended input, registered only for a check | 2, if stage 1 shows it is needed |
@@ -91,7 +92,15 @@ Measured on 2026-11-22 with a Steam Frame over Steam Link, SteamVR 2.19.4 and VR
 | SteamVR screenshot API (`sergulath view screenshot`) | yes | no | no |
 | Overlay pixels (`sergulath overlay --save`) | no | one overlay at a time | no |
 
-A standalone headset draws its system screens on its own side; they do not pass through the PC's compositor, so no PC-side route includes them. Seeing them needs a capture on the headset itself, which these tools do not have yet.
+A standalone headset draws its system screens on its own side; they do not pass through the PC's compositor, so no PC-side route includes them.
+
+On the headset (Steam Frame, over SSH with a registered key; `sergulath frame overlays`): the Frame runs its own SteamVR (vrserver, vrcompositor, vrdashboard, XRService for tracking and cameras, vrlink receiving the PC's frames, gamescope for Steam's 2D UI). The "outside the play space" screen is the on-device overlays `system.systemui` (its button, "プレイスペース外でカメラを有効にする") and `XRService-CameraOverlay` (the camera view). From an on-device background client:
+
+| On-device route | Result |
+|---|---|
+| Overlay state (shown, alpha) | yes, for every system overlay: tells whether that screen is up |
+| Overlay pixels (`GetOverlayImageData`) | only raw-pixel overlays: `system.systemui` (a UI atlas with the button). The camera view, the headset view and Steam's UI are GPU textures and answer error 24 |
+| The composited headset image | not found yet. The compositor's debug command `screenshot_all_request` was accepted but wrote nothing; a Vulkan capture layer would need the compositor restarted with changed settings, which these read-only tools do not do |
 
 The VR View shows the scene only while the headset tracks. When a Frame on a desk loses tracking (tracking result `calibrating_out_of_range`), the view goes black; `view save` then reports the image as blank and exits with 1.
 

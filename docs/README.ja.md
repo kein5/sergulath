@@ -75,6 +75,7 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 | `sergulath settings show` / `set` / `restore`（PROCULO） | 待機とスリープの設定。写しを取ってから変え、写しから元に戻せる | 0 |
 | `sergulath view save` / `screenshot` | ヘッドセットに映っているものを保存する。VR表示のウィンドウ（シーンとオーバーレイ）か、SteamVR のスクリーンショット（シーンだけ）。[PC から見えるもの](#pc-から見えるもの)を参照 | 0（試作） |
 | `sergulath caption sample start` / `stop`、`sergulath caption check` | アプリのサンプルの字幕をセッションの側から送り、字幕のオーバーレイが描かれているかを確かめる | 0（済み） |
+| `sergulath frame overlays` | 単体で動くヘッドセット自身のシステムのオーバーレイを SSH で読む（状態と、読めるものは画像） | 1（試作） |
 | `sergulath view open` | VR表示を開く | 1 |
 | `sergulath chaperone show` / `apply` / `restore` | プレイエリア。`apply` は chaperone の設定 API の作業用の写しを使い、今の起動のあいだだけ反映する | 1 |
 | `sergulath driver register` / `send` / `unregister` | 人がいなくても入力できる仮想コントローラー（OpenVR のドライバー）。確認のあいだだけ登録する | 2（段階1で必要とわかったら） |
@@ -91,7 +92,15 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 | SteamVR のスクリーンショットの API（`sergulath view screenshot`） | 写る | 写らない | 写らない |
 | オーバーレイの画素（`sergulath overlay --save`） | 写らない | 1つずつ写る | 写らない |
 
-単体で動くヘッドセットは、システムの画面をヘッドセットの側で描きます。PC のコンポジターを通らないので、PC 側のどの経路にも写りません。見るにはヘッドセットの側での取得が要り、この道具にはまだその手段がありません。
+単体で動くヘッドセットは、システムの画面をヘッドセットの側で描きます。PC のコンポジターを通らないので、PC 側のどの経路にも写りません。
+
+ヘッドセットの上（Steam Frame に SSH で入り、登録した鍵を使う。`sergulath frame overlays`）：Frame は自分の SteamVR を動かしています（vrserver、vrcompositor、vrdashboard、追跡とカメラの XRService、PC の映像を受ける vrlink、Steam の 2D の画面の gamescope）。「プレイエリア外」の画面は、ヘッドセット上のオーバーレイ `system.systemui`（ボタン「プレイスペース外でカメラを有効にする」）と `XRService-CameraOverlay`（カメラの映像）です。ヘッドセット上のバックグラウンドのクライアントから見た結果は次のとおりです。
+
+| ヘッドセット上の経路 | 結果 |
+|---|---|
+| オーバーレイの状態（表示、透明度） | どのシステムのオーバーレイでも読める。その画面が出ているかがわかる |
+| オーバーレイの画素（`GetOverlayImageData`） | 画素で渡されたオーバーレイだけ読める。`system.systemui`（ボタンを含む UI の画像の寄せ集め）は読める。カメラの映像、ヘッドセットのビュー、Steam の画面は GPU のテクスチャで、エラー24 になる |
+| ヘッドセットに映る合成後の画像 | まだ見つかっていない。コンポジターのデバッグ用のコマンド `screenshot_all_request` は受け付けられたが何も書かなかった。Vulkan の取得用のレイヤーを使うには、設定を変えてコンポジターを起動し直す必要があり、読み取りだけのこの道具ではしない |
 
 VR表示にシーンが映るのは、ヘッドセットが位置を出している間だけです。机に置いた Frame が位置を見失う（追跡の状態が `calibrating_out_of_range`）と黒くなります。そのとき `view save` は画像が空だと報告し、終了コード1で終わります。
 

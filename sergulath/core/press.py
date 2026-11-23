@@ -60,7 +60,8 @@ def intersect(openvr, overlay, handle, ray: placement.Matrix):
 
 
 def press(openvr, key: str, u: float, v: float, *, hand: str = "right", distance_m: float = 0.12,
-          pitch_up_deg: float = 0.0, hold_s: float = 0.15, settle_s: float = 0.4, dry_run: bool = False) -> PressResult:
+          pitch_up_deg: float = 0.0, hold_s: float = 0.3, settle_s: float = 0.4, hover_s: float = 1.5,
+          dry_run: bool = False) -> PressResult:
     result = PressResult(key, hand, [u, v])
     overlay = openvr.IVROverlay()
     try:
@@ -93,6 +94,12 @@ def press(openvr, key: str, u: float, v: float, *, hand: str = "right", distance
         result.hit_distance_m = round(hit[1], 4)
     if dry_run:
         return result
+    if overlay.isDashboardVisible():
+        result.error = ("SteamVR's dashboard is open, so apps get no buttons: "
+                        "`sergulath controller dashboard close` first")
+        return result
+    # Let the app see the laser on the spot first: it moves its pointer there before a press counts.
+    time.sleep(hover_s)
     driver.send(f"button {hand} trigger 1")
     time.sleep(hold_s)
     driver.send(f"button {hand} trigger 0")

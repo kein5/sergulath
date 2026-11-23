@@ -41,16 +41,24 @@ class DriverError(RuntimeError):
 
 # ---- talking to the loaded driver --------------------------------------------------------------
 
-def send(line: str, timeout: float = 1.0) -> str:
-    """Send one command and return the reply's text after "ok" (see driver/src/control.rs)."""
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-        s.settimeout(timeout)
-        s.sendto(line.encode("utf-8"), ("127.0.0.1", PORT))
-        try:
-            reply = s.recv(65536).decode("utf-8", "replace").strip()
-        except (TimeoutError, ConnectionResetError, socket.timeout) as e:
-            raise DriverNotLoaded("the virtual controller driver does not answer: is it registered and "
-                                  "SteamVR restarted? (`sergulath driver register --restart`)") from e
+def send(line: str, timeout: float = 1.0, attempts: int = 3) -> str:
+    """Send one command and return the reply's text after "ok" (see driver/src/control.rs).
+
+    UDP may drop a datagram, and the driver answers from vrserver's process, which can be busy
+    for a moment; every command is idempotent, so a lost one is simply sent again."""
+    reply = None
+    for _ in range(attempts):
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.settimeout(timeout)
+            s.sendto(line.encode("utf-8"), ("127.0.0.1", PORT))
+            try:
+                reply = s.recv(65536).decode("utf-8", "replace").strip()
+                break
+            except (TimeoutError, ConnectionResetError, socket.timeout):
+                continue
+    if reply is None:
+        raise DriverNotLoaded("the virtual controller driver does not answer: is it registered and "
+                              "SteamVR restarted? (`sergulath driver register --restart`)")
     if reply == "ok" or reply.startswith("ok "):
         return reply[3:]
     raise DriverError(reply.removeprefix("error ").strip() or reply)
@@ -87,6 +95,12 @@ def read_pose(openvr, hand: str):
         return None
     pose = system.getDeviceToAbsoluteTrackingPose(openvr.TrackingUniverseStanding, 0, openvr.k_unMaxTrackedDeviceCount)[index]
     return to_rows(pose.mDeviceToAbsoluteTracking) if pose.bPoseIsValid else None
+
+
+def wait_loaded(timeout: float = 30.0) -> None:
+    """Wait until a freshly started SteamVR has loaded the driver and its listener answers."""
+    if not _wait(loaded, timeout):
+        raise DriverNotLoaded("SteamVR started, but the virtual controller driver does not answer")
 
 
 def loaded() -> bool:

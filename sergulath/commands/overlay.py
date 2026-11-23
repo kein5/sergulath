@@ -40,7 +40,9 @@ def add_arguments(parser) -> None:
     where.add_argument("--button", metavar="NAME", help="a spot named in the profile's [buttons.KEY]")
     p.add_argument("--hand", choices=("left", "right"), default="right", help="the controller that presses (default right)")
     p.add_argument("--distance", type=float, default=0.12, help="metres between controller and overlay (default 0.12)")
-    p.add_argument("--hold", type=float, default=0.15, help="seconds the trigger stays down (default 0.15)")
+    p.add_argument("--hold", type=float, default=0.3, help="seconds the trigger stays down (default 0.3: ASTAROT missed 0.15 s, and 0.6 s is its long press)")
+    p.add_argument("--hover", type=float, default=1.5,
+                   help="seconds the laser rests on the spot before the trigger (default 1.5; the app needs to see it first)")
     p.add_argument("--dry-run", action="store_true", help="aim and report the hit, but do not press")
     output.add_format(p)
 
@@ -59,7 +61,7 @@ def _press(args) -> int:
     pitch = float(profile.get("laser", {}).get("pitch_up_deg", 0.0))
     with steamvr.background_client() as openvr:
         result = press.press(openvr, args.overlay, u, v, hand=args.hand, distance_m=args.distance,
-                             pitch_up_deg=pitch, hold_s=args.hold, dry_run=args.dry_run)
+                             pitch_up_deg=pitch, hold_s=args.hold, hover_s=args.hover, dry_run=args.dry_run)
     record = {**result.to_dict(), "button": args.button}
     if result.error:
         text = f"{args.overlay} at ({u}, {v}): {result.error}"

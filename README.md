@@ -81,7 +81,15 @@ sergulath driver run --restart -- sergulath overlay press --overlay ASTAROT3 --b
 
 Apps that read buttons with `GetControllerState` (ASTAROT does) get them through the driver's legacy binding: trigger (`k_EButton_SteamVR_Trigger`), grip and application menu. SteamVR keeps the system button for itself.
 
-Measured on 2026-11-23 (Steam Frame on a desk, in standby; SteamVR 2.19.4): the driver loads beside the Frame's, both controllers get valid poses and the left/right roles, and ASTAROT's launcher follows the virtual left hand. But SteamVR's `ComputeOverlayIntersection` answered no hit for every overlay, even an opaque one SERGULATH made itself and an app run as an overlay app. ASTAROT's laser uses the same call, so with the headset in standby nothing can be pressed; the check needs the headset awake. The VR View goes black in the same state. Blocking standby from the driver (`standby block`, `ShouldBlockStandbyMode`) did not change it; the headset reported `idle` either way. ASTAROT received the virtual grip (its log: `overlay grab: hand 2 grip true hit none`) but its laser hit nothing. The headset's missing pose is the remaining difference; a virtual headset is being designed.
+Measured on 2026-11-23 (Steam Frame on a desk, in standby; SteamVR 2.19.4): the driver loads beside the Frame's, both controllers get valid poses and the left/right roles, and ASTAROT's launcher follows the virtual left hand. But SteamVR's `ComputeOverlayIntersection` answered no hit for every overlay, even an opaque one SERGULATH made itself and an app run as an overlay app. ASTAROT's laser uses the same call, so with the headset in standby nothing can be pressed; the check needs the headset awake. The VR View goes black in the same state. Blocking standby from the driver (`standby block`, `ShouldBlockStandbyMode`) did not change it; the headset reported `idle` either way. ASTAROT received the virtual grip (its log: `overlay grab: hand 2 grip true hit none`) but its laser hit nothing. The headset's missing pose was the remaining difference.
+
+With the virtual headset (`sergulath hmd`, 2026-11-23, same PC) the launcher is pressed with nobody at the headset:
+
+```sh
+sergulath hmd run --with-driver -- python examples/astarot_launcher_e2e.py 6
+```
+
+`hmd run` snapshots `steamvr.forcedDriver` and `driver_null.*`, registers the virtual controllers and restarts SteamVR through Steam; the null headset reports a fixed head pose at the standing origin. The script closes SteamVR's dashboard (SteamVR opens it when no game runs, and apps get no buttons while it is open), holds the left hand so the launcher faces the head, and presses the launcher's log button six times: 12 of 12 presses in two runs toggled the VR panel, and 10 of 10 more by hand. Afterwards `hmd run` restores the settings, removes the driver and restarts SteamVR, and the Steam Frame came back as the headset by itself. While the virtual headset is on, the Frame is not SteamVR's headset and shows nothing from the PC. A press holds the trigger 0.3 s: ASTAROT missed 0.15 s, and 0.6 s is its long press (the log button then recalls the log instead).
 
 ## Why
 
@@ -102,12 +110,16 @@ Each part is a subcommand of `sergulath`. Commands that change something have a 
 | `sergulath steamvr status` | Reports SteamVR: running or not, whether `vrmonitor` runs, its version, the headset's and controllers' state | 0, done |
 | `sergulath steamvr start` / `wait` / `stop` | Starts SteamVR through Steam, waits for the headset (connected or tracking), quits SteamVR | 0, done |
 | `sergulath settings show` / `set` / `restore` / `pending` | SteamVR settings (`section.name=value`), changed only after a snapshot of the keys, restored key by key | 0, done |
-| `sergulath view save` / `screenshot` | Saves what the headset shows: the VR View window (scene and overlays) or a SteamVR screenshot (scene only). See [What the PC can see](#what-the-pc-can-see) | 0, prototype |
+| `sergulath view save` / `screenshot` | Saves what the headset shows: the VR View window (scene and overlays), the virtual headset's window (`--headset`), or a SteamVR screenshot (scene only). See [What the PC can see](#what-the-pc-can-see) | 0, prototype |
 | `sergulath caption sample start` / `stop`, `sergulath caption check` | Sends the app's sample caption from the session side, and checks that the caption overlay renders | 0, done |
 | `sergulath frame overlays` | Reads a standalone headset's own system overlays over SSH (state, and images where readable) | 1, prototype |
 | `sergulath view open` | Opens the VR View | 1 |
 | `sergulath chaperone show` / `apply` / `restore` | The play area; `apply` uses the chaperone setup API's working copy for this session only | 1 |
 | `sergulath driver build` / `register` / `unregister` / `run` / `status` | A virtual controller driver (an OpenVR driver with a left and a right hand), registered only for a check. See [Pressing an overlay](#pressing-an-overlay) | 2, prototype (brought forward) |
+| `sergulath controller connect` / `pose` / `button` / `dashboard` | Moves the virtual controllers and presses their buttons; `pose --show KEY` holds a hand so its wrist overlay faces the headset; `dashboard close` closes SteamVR's dashboard, which takes the buttons from apps | 2, prototype |
+| `sergulath overlay press` | Points a virtual controller's laser at a spot on an overlay (from its real pose and size) and clicks the trigger | 2, prototype |
+| `sergulath hmd on` / `off` / `run` / `status` | A virtual headset (SteamVR's bundled null driver) for checks nobody wears, with a snapshot of the settings it changes and a restore, also after a failure | 2, prototype |
+| `sergulath asr serve` | A stand-in speech.cpp server (model list and Realtime WebSocket) that sends scripted, speaker-labelled captions, for checking an app's caption path with no model or sound. See [docs/checks/speaker-names.md](docs/checks/speaker-names.md) | 2, prototype |
 
 Stage 0 turns the scripts that already exist into commands. Stage 1 measures how far a real headset can be checked without a person. Stage 2 is decided from those measurements.
 

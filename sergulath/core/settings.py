@@ -81,12 +81,13 @@ def write(data: dict, path: Path) -> None:
     temporary.replace(path)
 
 
-def apply(changes: dict, path: Path, snapshot_dir: Path = SNAPSHOTS) -> tuple[list[Change], Path]:
+def apply(changes: dict, path: Path, snapshot_dir: Path | None = None, label: str = "") -> tuple[list[Change], Path]:
     """Write a snapshot, then the new values. Returns the changes and the snapshot file."""
+    snapshot_dir = snapshot_dir or SNAPSHOTS
     data = read(path)
     done = [Change(key, get(data, key), value) for key, value in changes.items()]
     snapshot_dir.mkdir(parents=True, exist_ok=True)
-    snapshot = snapshot_dir / time.strftime("%Y%m%dT%H%M%S.json")
+    snapshot = snapshot_dir / (time.strftime("%Y%m%dT%H%M%S") + (f"-{label}" if label else "") + ".json")
     snapshot.write_text(json.dumps({"file": str(path), "taken": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
                                     "changes": [c.to_dict() for c in done]}, indent=2), encoding="utf-8")
     for change in done:
@@ -95,8 +96,8 @@ def apply(changes: dict, path: Path, snapshot_dir: Path = SNAPSHOTS) -> tuple[li
     return done, snapshot
 
 
-def latest_snapshot(snapshot_dir: Path = SNAPSHOTS) -> Path | None:
-    found = sorted(p for p in snapshot_dir.glob("*.json") if not p.name.endswith(".restored.json"))
+def latest_snapshot(snapshot_dir: Path | None = None, label: str = "") -> Path | None:
+    found = [p for p in pending(snapshot_dir) if not label or p.stem.endswith(f"-{label}")]
     return found[-1] if found else None
 
 
@@ -115,6 +116,7 @@ def restore(snapshot: Path) -> list[Change]:
     return undone
 
 
-def pending(snapshot_dir: Path = SNAPSHOTS) -> list[Path]:
+def pending(snapshot_dir: Path | None = None) -> list[Path]:
     """Snapshots not restored yet: a check that changed settings and did not finish."""
+    snapshot_dir = snapshot_dir or SNAPSHOTS
     return sorted(p for p in snapshot_dir.glob("*.json") if not p.name.endswith(".restored.json"))

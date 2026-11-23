@@ -81,7 +81,15 @@ sergulath driver run --restart -- sergulath overlay press --overlay ASTAROT3 --b
 
 `GetControllerState` でボタンを読むアプリ（ASTAROT もそう）には、ドライバーのレガシーの割り当てを通して、トリガー（`k_EButton_SteamVR_Trigger`）、グリップ、アプリケーションメニューが届きます。システムボタンは SteamVR が自分で使います。
 
-2026-11-23 に、机の上に置いてスタンバイになった Steam Frame と SteamVR 2.19.4 で確かめました。ドライバーは Frame のドライバーと並んで読み込まれ、2つのコントローラーには正しい位置と左右の役割が付き、ASTAROT のランチャーは仮想の左手に付きました。ただし SteamVR の `ComputeOverlayIntersection` はどのオーバーレイにも当たりなしを返し、SERGULATH が自分で作った不透明なオーバーレイでも、オーバーレイのアプリとして呼んでも結果は同じです。ASTAROT のレーザーも同じ呼び出しを使うので、この状態では何も押せません。同じ状態で VR View も黒くなります。ドライバーからスタンバイを止めても（`standby block`。`ShouldBlockStandbyMode`）変わらず、ヘッドセットはどちらでも `idle` でした。ASTAROT には仮想のグリップが届きましたが（ログは `overlay grab: hand 2 grip true hit none`）、レーザーはどこにも当たりませんでした。残る違いはヘッドセットの位置が取れないことで、仮想のヘッドセットを設計しているところです。
+2026-11-23 に、机の上に置いてスタンバイになった Steam Frame と SteamVR 2.19.4 で確かめました。ドライバーは Frame のドライバーと並んで読み込まれ、2つのコントローラーには正しい位置と左右の役割が付き、ASTAROT のランチャーは仮想の左手に付きました。ただし SteamVR の `ComputeOverlayIntersection` はどのオーバーレイにも当たりなしを返し、SERGULATH が自分で作った不透明なオーバーレイでも、オーバーレイのアプリとして呼んでも結果は同じです。ASTAROT のレーザーも同じ呼び出しを使うので、この状態では何も押せません。同じ状態で VR View も黒くなります。ドライバーからスタンバイを止めても（`standby block`。`ShouldBlockStandbyMode`）変わらず、ヘッドセットはどちらでも `idle` でした。ASTAROT には仮想のグリップが届きましたが（ログは `overlay grab: hand 2 grip true hit none`）、レーザーはどこにも当たりませんでした。残る違いは、ヘッドセットの位置が取れないことでした。
+
+仮想のヘッドセット（`sergulath hmd`）を使うと、誰もかぶらずにランチャーを押せます（2026-11-23、同じ PC）。
+
+```sh
+sergulath hmd run --with-driver -- python examples/astarot_launcher_e2e.py 6
+```
+
+`hmd run` は `steamvr.forcedDriver` と `driver_null.*` の写しを取ってから設定を変え、仮想コントローラーを登録し、SteamVR を Steam から起動し直します。null のヘッドセットは立ち位置の原点に固定した頭の位置を返します。スクリプトはまず SteamVR のダッシュボードを閉じます（ゲームがないと SteamVR が開き、開いているあいだアプリにボタンが届きません）。次に、ランチャーが頭のほうを向くように左手を置き、ランチャーのログのボタンを6回押します。2回の実行で12回とも VR パネルが開閉し、手で試した10回もすべて開閉しました。終わると `hmd run` は設定を戻し、ドライバーを外し、SteamVR を起動し直します。Steam Frame は自動でヘッドセットに戻りました。仮想のヘッドセットを使うあいだ、Frame は SteamVR のヘッドセットではなく、PC からの映像は映りません。押すときはトリガーを 0.3 秒押し続けます。ASTAROT は 0.15 秒の押下を取りこぼし、0.6 秒は長押しになります（ログのボタンでは、ログを呼び戻す動作になります）。
 
 ## 作る理由
 
@@ -102,12 +110,16 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 | `sergulath steamvr status` | SteamVR が動いているか、`vrmonitor` が動いているか、版、ヘッドセットとコントローラーの状態を示す | 0（済み） |
 | `sergulath steamvr start` / `wait` / `stop` | SteamVR を Steam から起動し、ヘッドセットの接続（または追跡）を待ち、SteamVR を終了する | 0（済み） |
 | `sergulath settings show` / `set` / `restore` / `pending` | SteamVR の設定（`section.name=値`）。変える前に対象のキーの写しを取り、キーごとに元に戻す | 0（済み） |
-| `sergulath view save` / `screenshot` | ヘッドセットに映っているものを保存する。VR表示のウィンドウ（シーンとオーバーレイ）か、SteamVR のスクリーンショット（シーンだけ）。[PC から見えるもの](#pc-から見えるもの)を参照 | 0（試作） |
+| `sergulath view save` / `screenshot` | ヘッドセットに映っているものを保存する。VR表示のウィンドウ（シーンとオーバーレイ）、仮想のヘッドセットのウィンドウ（`--headset`）、SteamVR のスクリーンショット（シーンだけ）のどれか。[PC から見えるもの](#pc-から見えるもの)を参照 | 0（試作） |
 | `sergulath caption sample start` / `stop`、`sergulath caption check` | アプリのサンプルの字幕をセッションの側から送り、字幕のオーバーレイが描かれているかを確かめる | 0（済み） |
 | `sergulath frame overlays` | 単体で動くヘッドセット自身のシステムのオーバーレイを SSH で読む（状態と、読めるものは画像） | 1（試作） |
 | `sergulath view open` | VR表示を開く | 1 |
 | `sergulath chaperone show` / `apply` / `restore` | プレイエリア。`apply` は chaperone の設定 API の作業用の写しを使い、今の起動のあいだだけ反映する | 1 |
 | `sergulath driver build` / `register` / `unregister` / `run` / `status` | 仮想コントローラーのドライバー（左手と右手を出す OpenVR のドライバー）。確認のあいだだけ登録する。[オーバーレイを押す](#オーバーレイを押す)を参照 | 2（試作。前倒し） |
+| `sergulath controller connect` / `pose` / `button` / `dashboard` | 仮想コントローラーを動かし、ボタンを押す。`pose --show KEY` は、手首のオーバーレイがヘッドセットの正面に来るように手を置く。`dashboard close` は、アプリへのボタンを止める SteamVR のダッシュボードを閉じる | 2（試作） |
+| `sergulath overlay press` | オーバーレイの実際の位置と大きさから、仮想コントローラーのレーザーを指定の場所に向けてトリガーを押す | 2（試作） |
+| `sergulath hmd on` / `off` / `run` / `status` | 人がかぶらない確認のための仮想のヘッドセット（SteamVR に同梱の null ドライバー）。変える設定の写しを取り、失敗したときも元に戻す | 2（試作） |
+| `sergulath asr serve` | speech.cpp の代わりのサーバー（モデルの一覧と Realtime の WebSocket）。決めた文を話者のラベル付きで送り、モデルも音もなしにアプリの字幕の経路を確かめられる。[docs/checks/speaker-names.md](docs/checks/speaker-names.md) を参照 | 2（試作） |
 
 段階0ではスクリプトとしてすでにある道具をコマンドにし、段階1では実機のヘッドセットを人なしでどこまで確かめられるかを測ります。段階2はその結果を見て決めます。
 

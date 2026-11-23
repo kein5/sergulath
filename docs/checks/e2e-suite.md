@@ -63,3 +63,8 @@ This Windows PC, SteamVR 2.19.4, a Steam Frame on the desk in standby, ASTAROT 0
 installed: 19 passed, 0 failed, 0 errors, 2 unsupported, 1 manual, 2 skipped (of 24), in 6 minutes.
 The cleanup left the installed app running with its own settings, the Frame as the headset, no
 settings snapshot pending and the driver unregistered.
+
+The long cases, run after it (`--only E18 --only E21 --slow`):
+
+- E18 passed. The headset stayed in standby throughout, as expected unattended.
+- **E21 failed.** After 7 minutes idle the one-line caption was shown (visible, alpha 1.0) but SteamVR answered `OverlayError_InvalidTexture` when its pixels were read, so `caption check` could not see it drawn. The same build read fine before and read fine again right after SteamVR restarted, and under the virtual headset. It fails once the real headset has gone to standby (activity `standby`, after `power.turnOffScreensTimeout`): SteamVR does not hand out an overlay's pixels then. Whether the caption is still drawn when the headset wakes is not something this case can see; it needs the headset worn after a standby, or the headset image route (stage 4 of the gap plan).

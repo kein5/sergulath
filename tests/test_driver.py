@@ -4,6 +4,7 @@ import contextlib
 import io
 import json
 import math
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -56,7 +57,7 @@ class RegistryTest(unittest.TestCase):
     def test_registration_is_read_from_openvrpaths(self):
         folder = Path(tempfile.gettempdir()) / "sergulath-driver"
         self.assertFalse(driver.is_registered(folder, {"external_drivers": None}))
-        self.assertTrue(driver.is_registered(folder, {"external_drivers": [str(folder) + "\\"]}))
+        self.assertTrue(driver.is_registered(folder, {"external_drivers": [str(folder) + os.sep]}))
 
     def test_a_reply_that_is_not_ok_is_an_error(self):
         class Socket:

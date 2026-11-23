@@ -130,6 +130,7 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 | `sergulath view save` / `screenshot` | ヘッドセットに映っているものを保存する。VR表示のウィンドウ（シーンとオーバーレイ）、仮想のヘッドセットのウィンドウ（`--headset`）、SteamVR のスクリーンショット（シーンだけ）のどれか。`--headset --overlay KEY` は SteamVR が画素を渡さないオーバーレイを、仮想のヘッドセットの映像から切り出す。[PC から見えるもの](#pc-から見えるもの)と [docs/checks/headset-view.md](checks/headset-view.md) を参照 | 0（済み） |
 | `sergulath caption sample start` / `stop`、`sergulath caption check` | アプリのサンプルの字幕をセッションの側から送り、字幕のオーバーレイが描かれているかを確かめる | 0（済み） |
 | `sergulath frame overlays` | 単体で動くヘッドセット自身のシステムのオーバーレイを SSH で読む（状態と、読めるものは画像） | 1（試作） |
+| `sergulath frame shot` | Steam Frame のパネルに出ているもの（表示中のフレームバッファ。両目とカメラの画面を含む）を保存する。root が1回要る。パスワードはセッションの道具が書く使い切りのファイルから読み、sudo にだけ渡す。[docs/checks/frame-shot.md](checks/frame-shot.md) を参照 | 2（試作。画像はまだ取れていない） |
 | `sergulath view open` / `close` | 人の手なしで VR表示を開き（`steamvr.showMirrorView` の写しを取って SteamVR を起動し直す）、元に戻す。[docs/checks/view-and-chaperone.md](checks/view-and-chaperone.md) を参照 | 1（済み） |
 | `sergulath chaperone show` / `apply` / `restore` | プレイエリアを読む。`chaperone_info.vrchap` の写しを取ってから、chaperone の設定 API で大きさ（と壁）を設定する。`restore` でファイルを書き戻す。SteamVR 2.19.4 は「一時的」な反映もファイルに書くので、変更は今の起動のあいだだけでは終わらず、`restore` まで残る | 1（済み） |
 | `sergulath driver build` / `register` / `unregister` / `run` / `status` | 仮想コントローラーのドライバー（左手と右手を出す OpenVR のドライバー）。確認のあいだだけ登録する。[オーバーレイを押す](#オーバーレイを押す)を参照 | 2（試作。前倒し） |

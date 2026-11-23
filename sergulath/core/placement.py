@@ -133,6 +133,28 @@ def read(openvr, overlay, handle, poses=None) -> Placement:
     return place
 
 
+def world_matrix(openvr, overlay, handle, poses=None) -> Matrix | None:
+    """The overlay's pose in the standing universe, or None when it cannot be known now
+    (a device-relative overlay whose device has no pose, or a kind not handled here)."""
+    system = openvr.VRSystem()
+    if poses is None:
+        poses = system.getDeviceToAbsoluteTrackingPose(openvr.TrackingUniverseStanding, 0, openvr.k_unMaxTrackedDeviceCount)
+    kind = overlay.getOverlayTransformType(handle)
+    kind = TRANSFORM.get(int(getattr(kind, "value", kind)))
+    if kind == "tracked_device_relative":
+        index, relative = overlay.getOverlayTransformTrackedDeviceRelative(handle)
+        index = int(getattr(index, "value", index))
+        if index == NO_DEVICE or index >= len(poses) or not poses[index].bPoseIsValid:
+            return None
+        return multiply(to_rows(poses[index].mDeviceToAbsoluteTracking), to_rows(relative))
+    if kind == "absolute":
+        universe, relative = overlay.getOverlayTransformAbsolute(handle)
+        if int(getattr(universe, "value", universe)) != 1:
+            return None
+        return to_rows(relative)
+    return None
+
+
 def describe(place: Placement) -> str:
     if place.error:
         return f"placement: {place.transform} ({place.error})"

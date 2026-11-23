@@ -1,0 +1,36 @@
+{
+	"jsonid": "input_profile",
+	"controller_type": "sergulath_controller",
+	"device_class": "TrackedDeviceClass_Controller",
+	"resource_root": "sergulath",
+	"driver_name": "sergulath",
+	"legacy_binding": "{sergulath}/input/legacy_bindings_sergulath_controller.json",
+	"input_bindingui_mode": "controller_handed",
+	"should_show_binding_errors": false,
+	"input_source": {
+		"/input/trigger": {
+			"type": "button",
+			"click": true,
+			"order": 1
+		},
+		"/input/grip": {
+			"type": "button",
+			"click": true,
+			"order": 2
+		},
+		"/input/application_menu": {
+			"type": "button",
+			"click": true,
+			"order": 3
+		},
+		"/input/system": {
+			"type": "button",
+			"click": true,
+			"order": 4
+		},
+		"/pose/raw": {
+			"type": "pose"
+		}
+	},
+	"default_bindings": []
+}

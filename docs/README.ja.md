@@ -120,7 +120,9 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 | `sergulath overlay press` | オーバーレイの実際の位置と大きさから、仮想コントローラーのレーザーを指定の場所に向けてトリガーを押す | 2（試作） |
 | `sergulath hmd on` / `off` / `run` / `status` | 人がかぶらない確認のための仮想のヘッドセット（SteamVR に同梱の null ドライバー）。変える設定の写しを取り、失敗したときも元に戻す | 2（試作） |
 | `sergulath asr serve` | speech.cpp の代わりのサーバー（モデルの一覧と Realtime の WebSocket）。決めた文を話者のラベル付きで送り、モデルも音もなしにアプリの字幕の経路を確かめられる。[docs/checks/speaker-names.md](docs/checks/speaker-names.md) を参照 | 2（試作） |
-| `sergulath suite list` / `run` | ケース定義ファイル（TOML）から E2E のケースを順に実行し、成功、失敗、エラー、未対応、人手、スキップを数える。ASTAROT の 24 件は `suites/astarot-e2e.toml`。[docs/checks/e2e-suite.md](docs/checks/e2e-suite.md) を参照 | 2（済み） |
+| `sergulath suite list` / `run` | ケース定義ファイル（TOML）から E2E のケースを順に実行し、成功、失敗、エラー、未対応、人手、スキップを数える。ASTAROT の 26 件は `suites/astarot-e2e.toml`。[docs/checks/e2e-suite.md](checks/e2e-suite.md) を参照 | 2（済み） |
+| `sergulath soak` | 動いているアプリを一定時間（既定 30 分）見守り、プロセスが落ちないこと、ウォームアップ後のプロセスツリーのメモリ使用量が増え続けないこと、指定したオーバーレイが表示され続けることを確かめる（読み取りだけ）。[docs/checks/soak-and-upgrade.md](checks/soak-and-upgrade.md) を参照 | 2（済み） |
+| `sergulath upgrade channel` / `check` | 更新チャネルのマニフェストを確認する（読み取りだけ）、または隔離したフォルダーで旧版（0.6.0）からベータチャネルかローカルの配布ファイルへ更新し、設定とモデルが引き継がれて通常起動できることを確かめる。[docs/checks/soak-and-upgrade.md](checks/soak-and-upgrade.md) を参照 | 2（済み） |
 | `sergulath app status` / `start` / `stop` / `press` | 確認するアプリ。専用の設定フォルダーで起動し（`--settings-dir`、`--fresh`）、止め、ボタンを名前で押す | 2（済み） |
 
 段階0ではスクリプトとしてすでにある道具をコマンドにし、段階1では実機のヘッドセットを人なしでどこまで確かめられるかを測ります。段階2はその結果を見て決めます。

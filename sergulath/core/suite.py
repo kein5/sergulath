@@ -50,6 +50,7 @@ class Step:
     run: list[str]
     exit: list[int] = field(default_factory=lambda: [0])
     json: dict = field(default_factory=dict)
+    unsupported_when: dict = field(default_factory=dict)
     wait: float = 0.0
     timeout: float = 300.0
 
@@ -89,6 +90,7 @@ class StepResult:
     ok: bool
     why: str = ""
     seconds: float = 0.0
+    unsupported: bool = False
 
 
 @dataclass
@@ -170,15 +172,19 @@ def matches(value, want) -> bool:
     return value == want
 
 
-def json_matches(stdout: str, wanted: dict) -> bool:
+def json_find(stdout: str, wanted: dict) -> dict | None:
     for line in stdout.splitlines():
         try:
             record = json.loads(line)
         except ValueError:
             continue
         if isinstance(record, dict) and all(matches(lookup(record, k), v) for k, v in wanted.items()):
-            return True
-    return False
+            return record
+    return None
+
+
+def json_matches(stdout: str, wanted: dict) -> bool:
+    return json_find(stdout, wanted) is not None
 
 
 def run_step(step: Step, log=None) -> StepResult:
@@ -195,6 +201,11 @@ def run_step(step: Step, log=None) -> StepResult:
     if log:
         log(step.run, done)
     seconds = time.monotonic() - started
+    if step.unsupported_when and done.returncode == 1:
+        matched = json_find(done.stdout, step.unsupported_when)
+        if matched is not None:
+            reason = str(matched.get("reason") or "reported unsupported")
+            return StepResult(step.run, done.returncode, False, reason, seconds, unsupported=True)
     if done.returncode not in step.exit:
         last = (done.stderr.strip().splitlines() or done.stdout.strip().splitlines() or [""])[-1]
         return StepResult(step.run, done.returncode, False, f"exit {done.returncode}, wanted {step.exit}: {last}", seconds)
@@ -218,6 +229,9 @@ def run_case(case: Case, log=None, slow: bool = False) -> CaseResult:
     for step in case.steps:
         outcome = run_step(step, log)
         result.steps.append(outcome)
+        if outcome.unsupported:
+            result.status, result.reason = UNSUPPORTED, outcome.why
+            break
         if not outcome.ok:
             result.status, result.reason = FAIL, f"{' '.join(step.run)}: {outcome.why}"
             break

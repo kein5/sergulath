@@ -38,6 +38,7 @@ def add_arguments(parser) -> None:
     status = sub.add_parser("status", help="whether the app runs")
     output.add_format(status)
     start = sub.add_parser("start", help="start the app")
+    start.add_argument("--exe", metavar="FILE", help="executable to start instead of the profile's")
     start.add_argument("--settings-dir", metavar="DIR", help="run with this settings folder instead of the user's")
     start.add_argument("--fresh", action="store_true", help="write DIR/config.json from the profile's check settings")
     start.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", help="a setting for --fresh (JSON value)")
@@ -90,7 +91,7 @@ def run(args) -> int:
         output.emit(result, ("pressed " + ", ".join(args.names)) if result.get("ok") else f"failed: {result}", args.format)
         return output.OK if result.get("ok") else output.NOT_MET
     # start
-    exe = app_core.executable(info)
+    exe = Path(args.exe).resolve() if getattr(args, "exe", None) else app_core.executable(info)
     env = dict(os.environ)
     if args.settings_dir:
         folder = Path(args.settings_dir).resolve()
@@ -102,7 +103,11 @@ def run(args) -> int:
                 key, _, value = pair.partition("=")
                 values[key] = settings_core.parse_value(value)
             config.write_text(json.dumps(values, ensure_ascii=False, indent=2), encoding="utf-8")
-        env.update(VRCT_CONFIG_DIR=str(folder), WEBVIEW2_USER_DATA_FOLDER=str(folder / "webview"))
+        env.update(
+            ASTAROT_CONFIG_DIR=str(folder),
+            VRCT_CONFIG_DIR=str(folder),
+            WEBVIEW2_USER_DATA_FOLDER=str(folder / "webview"),
+        )
     elif args.fresh or args.set:
         output.note("--fresh and --set need --settings-dir: the user's own settings are never written")
         return output.USAGE

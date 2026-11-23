@@ -76,3 +76,25 @@ log = [0.580, 0.5]
 language = [0.716, 0.5]
 inputs_outputs = [0.852, 0.5]
 vr_settings = [0.989, 0.5]  # the button runs past the launcher's region on 0.6.0-beta.2
+
+# Update channels and Windows install metadata, for `sergulath upgrade`.
+[upgrade]
+base_version = "0.6.0"
+repository = "kein5/astarot"
+package_asset = "VRCT-VOX.zip"
+installer_asset = "VRCT-VOX_setup.exe"
+stable_manifest = "https://vrct-vox-updates.kei9d09.workers.dev/latest.json"
+beta_manifest = "https://vrct-vox-updates.kei9d09.workers.dev/beta/latest.json"
+models_dir = "downloaded_models"
+# HKCU registry keys written by the NSIS installer (snapshotted and restored around installer runs).
+registry_keys = [
+    "Software\\kein5\\VRCT-VOX",
+    "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\VRCT-VOX",
+]
+
+# Non-default, schema-valid settings seeded before an upgrade and verified before and after launch.
+[upgrade.sentinel_settings]
+SELECTED_RELEASE_CHANNEL = "beta"
+RELEASE_CHANNEL_CHOSEN = true
+TRANSPARENCY = 87
+MIC_THRESHOLD = 456

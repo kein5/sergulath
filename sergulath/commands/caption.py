@@ -72,7 +72,7 @@ def _check(args, profile) -> int:
             width, height, rgba = window_capture.capture_client(window.hwnd)
             Path(args.view).parent.mkdir(parents=True, exist_ok=True)
             png.write_rgba(Path(args.view), width, height, rgba)
-            record["view"] = {"file": args.view, "blank": window_capture.is_blank(rgba)}
+            record["view"] = {"file": args.view, "blank": window_capture.vr_view_is_blank(rgba, width, height)}
         else:
             record["view"] = {"file": None, "error": "the VR View window is not open"}
     text = f"{args.line}-line caption ({key}): " + ("rendered" if rendered else "not rendered") + \

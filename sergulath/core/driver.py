@@ -230,15 +230,26 @@ def quit_steamvr(timeout: float = 30.0) -> None:
         raise DriverError("SteamVR did not quit")
 
 
-def start_steamvr(timeout: float = 90.0) -> None:
-    """Start SteamVR through Steam (so it runs as Steam's child, as it normally does)."""
+def start_steamvr(timeout: float = 90.0, attempts: int = 2) -> None:
+    """Start SteamVR through Steam (so it runs as Steam's child, as it normally does).
+
+    A wireless headset (a Steam Frame over Steam Link) sometimes does not come back to a SteamVR
+    started moments after the previous one quit: vrserver runs, but the compositor never starts
+    (vrserver.txt: VRInitError_Driver_WirelessHmdNotConnected). Quitting and starting once more
+    brought it back (2026-11-23), so a start that times out is tried again.
+    """
     exe = steam_exe()
     if exe is None or not exe.is_file():
         raise DriverError("Steam was not found (HKCU\\Software\\Valve\\Steam\\SteamExe)")
-    subprocess.Popen([str(exe), "-applaunch", STEAMVR_APP_ID], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                     creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-    if not _wait(lambda: not steamvr.missing_processes(), timeout):
-        raise DriverError("SteamVR did not start within %d s" % timeout)
+    for attempt in range(1, attempts + 1):
+        subprocess.Popen([str(exe), "-applaunch", STEAMVR_APP_ID], stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        if _wait(lambda: not steamvr.missing_processes(), timeout):
+            break
+        if attempt == attempts:
+            raise DriverError("SteamVR did not start within %d s (%d attempts)" % (timeout, attempts))
+        quit_steamvr()
+        time.sleep(5)
     # The server takes a few seconds more before clients and drivers are ready.
     time.sleep(8)
 

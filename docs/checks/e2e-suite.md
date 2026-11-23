@@ -28,9 +28,14 @@ Run it from the repository's root (the case file's paths are relative to it).
 - E01 stops SteamVR and starts it again through Steam.
 - The `virtual` phase (E08, E12, E14, E16, E17) switches SteamVR to the virtual headset with the
   virtual controllers (`hmd on --with-driver`: a settings snapshot) and back (`hmd off`).
+- The `vrview` phase (E22) opens the VR View (`view open`: a settings snapshot and a SteamVR
+  restart) and closes it (`view close`).
 
 Teardowns run also after a failure or an interruption. If a run dies before them anyway:
-`sergulath hmd off`, `sergulath app stop`, `sergulath app start`.
+`sergulath hmd off`, `sergulath view close`, `sergulath app stop`, `sergulath app start`.
+
+E22 alone, 2026-11-23 (same PC, Frame on the desk): passed; the VR View was closed again,
+`showMirrorView` back to false, no snapshot pending, and the installed app running.
 
 ## The case file
 
@@ -53,7 +58,7 @@ error make the exit code 1.
 | E17 (popup) | checks the VR UI popup instead | the list says a notification shows ASTAROT4 and it goes away with time; in 0.6 ASTAROT4 is the VR UI's popup window (language, inputs and outputs, VR settings), opened from the launcher, with no time-out. The case opens and closes it until the list is settled |
 | E18 (20-minute watch) | slow; standby throughout | unattended, the headset is not worn at the start, so the record cannot show the change from active |
 | E19 (tracking back after lifting) | manual | someone has to lift the headset; the virtual headset never loses tracking |
-| E22 (VR View captions, blank when lost) | unsupported | the VR View has to be opened by hand; `view open` is stage 3 of the gap plan |
+| E22 (VR View captions, blank when lost) | runs the blank half | `view open` opens the VR View (phase `vrview`, closed again by `view close`) and the Frame on the desk gives a blank view, exit 1. Captions in the VR View need the headset worn: under the virtual headset the VR View stays black (see [view-and-chaperone.md](view-and-chaperone.md)) |
 | E24 (0.5.x keys) | unsupported | needs a 0.5.x install (optional in the list) |
 | E09 (pixels read) | passes on 0.6.0-beta.2 | develop builds hand the caption overlays to SteamVR as GPU textures, whose pixels cannot be read (`OverlayError_InvalidTexture`); stage 4 of the gap plan makes the headset image the route |
 

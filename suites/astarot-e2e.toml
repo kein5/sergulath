@@ -43,6 +43,11 @@ setup = [
 ]
 teardown = [["sergulath", "hmd", "off"]]
 
+# The VR View opened unattended (a settings snapshot and a SteamVR restart), closed again after.
+[phase.vrview]
+setup = [["sergulath", "view", "open"]]
+teardown = [["sergulath", "view", "close"]]
+
 # ---- startup and prerequisites ----------------------------------------------------------------
 
 [[case]]
@@ -286,6 +291,18 @@ steps = [
     { run = ["sergulath", "overlay", "--placement", "--key", "ASTAROT3", "--format", "json"], json = { "placement.device" = "controller/left", "placement.offset_distance_m" = { lt = 0.3 } }, wait = 3 },
 ]
 
+# ---- the VR View --------------------------------------------------------------------------------
+
+[[case]]
+id = "E22"
+group = "view"
+phase = "vrview"
+title = "view save: the VR View is blank (exit 1) while the headset is not tracking"
+steps = [
+    { run = ["sergulath", "view", "save", "--out", "records/suite/e22-vr-view.png", "--format", "json"], exit = [1], json = { blank = true }, wait = 5 },
+]
+note = "The other half of the list's case, captions in the VR View while tracking, needs the headset worn: the VR View shows the mirror only while the real headset tracks, and under the virtual headset it stays black (the null driver gives it no mirror). Captions under the virtual headset are read from its own window instead (E09, `view save --headset`)."
+
 # ---- cases the suite cannot run --------------------------------------------------------------------
 
 [[case]]
@@ -293,12 +310,6 @@ id = "E19"
 group = "watch"
 title = "From tracking lost on a desk, lifting the headset brings tracking back"
 manual = "someone has to lift the headset; the virtual headset never loses tracking, so it cannot stand in"
-
-[[case]]
-id = "E22"
-group = "view"
-title = "view save: captions in the VR View while tracking; blank (exit 1) when tracking is lost"
-unsupported = "the VR View has to be opened by hand (`view open` is stage 3 of the 2026-11-23 gap plan)"
 
 [[case]]
 id = "E24"

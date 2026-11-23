@@ -84,6 +84,18 @@ def from_quaternion(position: list[float], q: list[float]) -> Matrix:
     ]
 
 
+def facing(position: list[float], viewer: list[float]) -> Matrix:
+    """A pose at `position` whose front (+z, where an overlay faces) points at `viewer`."""
+    away = [2 * position[i] - viewer[i] for i in range(3)]
+    return look_at(position, away)
+
+
+def holder_for(relative: Matrix, wanted: Matrix) -> Matrix:
+    """Where to hold the device an overlay follows (at `relative` from it) so the overlay ends up
+    at `wanted`: wanted = holder x relative."""
+    return multiply(wanted, inverse(relative))
+
+
 def look_at(position: list[float], target: list[float]) -> Matrix:
     """A pose at `position` whose -z points at `target`, keeping +y as close to up as it can."""
     forward = [target[i] - position[i] for i in range(3)]

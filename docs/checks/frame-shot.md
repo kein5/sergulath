@@ -68,8 +68,8 @@ Proven without root (`examples/frame_dmabuf_proof.py`): EGL lists `XR24` with mo
 red and half blue through GL, was imported again as a dma-buf and read back as exact red and
 blue. So the GPU decodes the compressed layout, and step 3 works.
 
-What is not known until it runs as root: whether the image while the headset is in standby is
-the last frame or black, and how long one capture takes (one read of a 37 MB frame).
+Running it as root answered the rest: in standby the panel shows a flat colour (not the last
+frame), and one capture takes under a second (see Runs).
 
 ## `sergulath frame shot`
 
@@ -112,5 +112,21 @@ on the Frame and no password file afterwards. A password is never asked for or g
   the user's `~/.cache/mesa_shader_cache` on the Frame (shared with other apps and managed by
   Mesa, so left alone). `frame shot` now turns the cache off and points anything else at the
   temporary folder.
-- The second run waits for the password to be entered again.
+- 2026-11-23, second run (after a hold on the hand-off was lifted): **captured.** The Frame lay on
+  the desk in standby.
+
+  ![What the Frame's panel showed in standby: two lens-shaped areas of flat dark blue on black](images/frame-shot-standby.png)
+
+  - 4320 x 2160, both eyes, full resolution and lossless (PNG). The image is the one sent to the
+    panel, after the lens correction, so each eye's visible area is a rounded shape and the
+    corners stay black.
+  - In standby the panel gets one flat colour, RGB (24, 28, 53), over 71% of the image (each
+    eye's area about 2000 x 2060 px), black elsewhere, and one edge colour: three colours in all.
+    Not the last frame before standby.
+  - Time: 0.83 s for the run over ssh (sudo, framebuffer, read, PNG); on the Frame the read took
+    82 ms and the PNG 291 ms. A real scene compresses less well, so its PNG will take longer.
+  - Effect: the compositor and vrserver kept running (same processes); no temporary folder and no
+    sudo ticket were left; the password file was deleted unread.
+- Not captured yet: the Frame awake (worn), with an app or the outside-the-play-area camera screen
+  showing. That needs someone to wear or move the headset, and the password once per capture.
 

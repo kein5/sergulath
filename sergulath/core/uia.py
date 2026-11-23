@@ -1,4 +1,4 @@
-"""Press buttons in a desktop app through Windows UI Automation, by their accessible names.
+"""Press buttons and check boxes in a desktop app through Windows UI Automation, by their accessible names.
 
 Runs Windows PowerShell's built-in UIAutomationClient, so no Python package is needed. Each
 step waits for its button, then uses the first pattern the button offers: Invoke, Toggle or
@@ -24,7 +24,9 @@ $cond = New-Object Windows.Automation.AndCondition(
 $win = $A::RootElement.FindFirst([Windows.Automation.TreeScope]::Children, $cond)
 $results = @()
 if (-not $win) { @{ ok = $false; error = "window not found"; steps = @() } | ConvertTo-Json -Compress -Depth 4; exit }
-$buttons = New-Object Windows.Automation.PropertyCondition($A::ControlTypeProperty, [Windows.Automation.ControlType]::Button)
+$buttons = New-Object Windows.Automation.OrCondition(
+  (New-Object Windows.Automation.PropertyCondition($A::ControlTypeProperty, [Windows.Automation.ControlType]::Button)),
+  (New-Object Windows.Automation.PropertyCondition($A::ControlTypeProperty, [Windows.Automation.ControlType]::CheckBox)))
 function Find-Button($name, $prefix) {
   foreach ($b in $win.FindAll([Windows.Automation.TreeScope]::Descendants, $buttons)) {
     $n = $b.Current.Name

@@ -1,0 +1,307 @@
+# ASTAROT end-to-end cases (24), from the list made on 2026-11-23 (the source of truth; the
+# numbers E01..E24 are its numbers). Run:
+#
+#     sergulath suite run --cases suites/astarot-e2e.toml --record records/suite/run
+#     sergulath suite run --cases suites/astarot-e2e.toml --slow     # also E18 and E21 (about 30 min)
+#
+# What it needs: SteamVR with the headset connected (a Steam Frame lying on a desk is fine),
+# the installed ASTAROT 0.6 or later, the virtual controller driver built (`sergulath driver
+# build`), and for E20 and E23 SSH to the Frame (`sergulath frame`).
+#
+# What it changes, all put back by the teardowns, also after a failure:
+# - The installed ASTAROT is stopped for the run; the cases run their own ASTAROT with a settings
+#   folder of its own under records/suite/ (ground rule 4: the user's settings are never touched),
+#   and the installed one is started again at the end.
+# - E01 stops SteamVR and starts it again through Steam.
+# - The "virtual" phase switches SteamVR to the virtual headset with the virtual controllers
+#   (`hmd on --with-driver`: settings snapshot, restored by `hmd off`).
+#
+# Order: the cases that use the real headset first, then the virtual-headset ones, so each phase
+# is set up once. Names pressed in the app are its Japanese UI (UI_LANGUAGE ja in the profile's
+# check settings).
+
+[suite]
+name = "astarot-e2e"
+setup = [
+    ["sergulath", "app", "stop"],
+    ["sergulath", "app", "start", "--settings-dir", "records/suite/app", "--fresh"],
+]
+teardown = [
+    ["sergulath", "app", "stop"],
+    ["sergulath", "app", "start"],
+]
+
+[phase.virtual]
+setup = [
+    ["sergulath", "app", "stop"],
+    ["sergulath", "app", "start", "--settings-dir", "records/suite/app-vr", "--fresh", "--set", "OVERLAY_VR_PANEL=true"],
+    ["sergulath", "hmd", "on", "--with-driver"],
+    ["sergulath", "steamvr", "wait", "--until", "tracking", "--timeout", "90"],
+    ["sergulath", "controller", "connect", "--hand", "left"],
+    ["sergulath", "controller", "connect", "--hand", "right"],
+    ["sergulath", "controller", "dashboard", "close"],
+]
+teardown = [["sergulath", "hmd", "off"]]
+
+# ---- startup and prerequisites ----------------------------------------------------------------
+
+[[case]]
+id = "E01"
+group = "startup"
+title = "With SteamVR stopped, the commands end with exit code 3 and do not start it"
+steps = [
+    { run = ["sergulath", "steamvr", "stop"] },
+    { run = ["sergulath", "overlay"], exit = [3] },
+    { run = ["sergulath", "caption", "check"], exit = [3] },
+    { run = ["sergulath", "watch", "--count", "1"], exit = [3] },
+    { run = ["sergulath", "steamvr", "status", "--no-devices", "--format", "json"], exit = [1], json = { running = false } },
+    { run = ["sergulath", "steamvr", "start"] },
+    { run = ["sergulath", "steamvr", "wait", "--until", "connected", "--timeout", "90"] },
+    { run = ["sergulath", "overlay", "--key", "ASTAROT0", "--format", "json"], json = { found = true }, wait = 15 },
+]
+
+[[case]]
+id = "E02"
+group = "startup"
+title = "steamvr status reports the version and the headset and controllers"
+steps = [
+    { run = ["sergulath", "steamvr", "status", "--format", "json"], json = { running = true, version = { present = true }, devices = { present = true } } },
+]
+
+[[case]]
+id = "E03"
+group = "startup"
+title = "With ASTAROT stopped, overlay finds nothing and exits with 1"
+steps = [
+    { run = ["sergulath", "app", "stop"] },
+    { run = ["sergulath", "overlay"], exit = [1] },
+    { run = ["sergulath", "app", "start", "--settings-dir", "records/suite/app"] },
+    { run = ["sergulath", "overlay", "--key", "ASTAROT0", "--format", "json"], json = { found = true }, wait = 15 },
+]
+
+[[case]]
+id = "E04"
+group = "startup"
+title = "The profile's overlay keys match the running version"
+steps = [
+    { run = ["sergulath", "profiles", "--format", "json"], json = { profile = "astarot", overlays = ["ASTAROT0", "ASTAROT1", "ASTAROT2", "ASTAROT3", "ASTAROT4"] } },
+    # The two caption overlays exist (ASTAROT2 to 4 come with the VR UI, checked in E11).
+    { run = ["sergulath", "overlay", "--key", "ASTAROT0", "--format", "json"], json = { found = true } },
+    { run = ["sergulath", "overlay", "--key", "ASTAROT1", "--format", "json"], json = { found = true } },
+    { run = ["sergulath", "overlay", "--legacy", "--format", "json"], exit = [1] },
+]
+
+# ---- caption overlays --------------------------------------------------------------------------
+
+[[case]]
+id = "E05"
+group = "captions"
+title = "After caption sample start, the one-line caption is shown, not transparent, and drawn"
+steps = [
+    { run = ["sergulath", "caption", "sample", "start"] },
+    { run = ["sergulath", "caption", "check", "--format", "json"], json = { rendered = true }, wait = 3 },
+    { run = ["sergulath", "caption", "sample", "stop"] },
+]
+
+[[case]]
+id = "E06"
+group = "captions"
+title = "With --line multi, ASTAROT1 is shown"
+steps = [
+    { run = ["sergulath", "caption", "sample", "start", "--line", "multi"] },
+    { run = ["sergulath", "caption", "check", "--line", "multi", "--format", "json"], json = { rendered = true }, wait = 3 },
+    { run = ["sergulath", "caption", "sample", "stop"] },
+]
+
+[[case]]
+id = "E07"
+group = "captions"
+title = "After the sample stops and the display time and fade pass, the alpha is back at 0"
+steps = [
+    { run = ["sergulath", "caption", "sample", "start"] },
+    { run = ["sergulath", "caption", "sample", "stop"], wait = 3 },
+    # The profile's defaults: shown 5 s, faded over 2 s.
+    { run = ["sergulath", "watch", "--count", "1", "--overlay", "ASTAROT0", "--format", "json"], json = { source = "overlay", key = "ASTAROT0", alpha = 0.0 }, wait = 12 },
+]
+
+[[case]]
+id = "E09"
+group = "captions"
+title = "overlay --save reads the pixels, and the sample's text is drawn"
+steps = [
+    { run = ["sergulath", "caption", "sample", "start"] },
+    { run = ["sergulath", "overlay", "--key", "ASTAROT0", "--save", "records/suite/E09", "--format", "json"], json = { found = true, drawn_px = { gt = 0 } }, wait = 3 },
+    { run = ["sergulath", "caption", "sample", "stop"] },
+]
+note = "0.6 develop builds hand the caption overlays to SteamVR as GPU textures; their pixels then cannot be read (OverlayError_InvalidTexture) and this case fails on them (see docs/checks/speaker-names.md)."
+
+[[case]]
+id = "E10"
+group = "captions"
+title = "Turning the caption overlays off removes the overlays"
+steps = [
+    { run = ["sergulath", "app", "press", "クイック設定", "--prefix"] },
+    { run = ["sergulath", "app", "press", "字幕オーバーレイ", "--prefix"] },
+    { run = ["sergulath", "overlay", "--key", "ASTAROT0", "--format", "json"], exit = [1], json = { found = false }, wait = 3 },
+    { run = ["sergulath", "overlay", "--key", "ASTAROT1", "--format", "json"], exit = [1], json = { found = false } },
+    # Back on.
+    { run = ["sergulath", "app", "press", "字幕オーバーレイ", "--prefix"] },
+    { run = ["sergulath", "overlay", "--key", "ASTAROT0", "--format", "json"], json = { found = true }, wait = 3 },
+]
+
+# ---- VR UI (with the #966 regression) ----------------------------------------------------------
+
+[[case]]
+id = "E11"
+group = "vr-ui"
+title = "Turning the VR UI on registers the launcher (ASTAROT3) and shows it"
+steps = [
+    { run = ["sergulath", "app", "press", "設定を開く", "実験的機能", "VR UIを表示する", "戻る"] },
+    { run = ["sergulath", "overlay", "--key", "ASTAROT3", "--format", "json"], json = { found = true, visible = true }, wait = 4 },
+    { run = ["sergulath", "overlay", "--key", "ASTAROT2", "--format", "json"], json = { found = true } },
+    { run = ["sergulath", "overlay", "--key", "ASTAROT4", "--format", "json"], json = { found = true } },
+]
+
+[[case]]
+id = "E13"
+group = "vr-ui"
+title = "With the headset on a desk in standby, the launcher's alpha is 0"
+steps = [
+    { run = ["sergulath", "overlay", "--key", "ASTAROT3", "--format", "json"], json = { visible = true, alpha = 0.0 } },
+]
+note = "As designed (native/vr-overlay, update_launcher_visibility): the launcher shows only while the head pose and the left hand's pose say the wrist is looked at; a headset without a pose gives neither (#966)."
+
+[[case]]
+id = "E15"
+group = "vr-ui"
+title = "Turning the VR UI off hides ASTAROT2 and ASTAROT3"
+steps = [
+    { run = ["sergulath", "app", "press", "設定を開く", "実験的機能", "VR UIを表示する", "戻る"] },
+    { run = ["sergulath", "overlay", "--key", "ASTAROT3", "--format", "json"], json = { visible = false }, wait = 4 },
+    { run = ["sergulath", "overlay", "--key", "ASTAROT2", "--format", "json"], json = { visible = false } },
+]
+
+# ---- watch and stability -------------------------------------------------------------------------
+
+[[case]]
+id = "E18"
+group = "watch"
+title = "A 20-minute watch records the headset's activity (active to standby) and the controllers"
+slow = true
+steps = [
+    { run = ["sergulath", "watch", "--count", "21", "--interval", "60", "--csv", "records/suite/E18.csv", "--format", "json"], json = { source = "steamvr", device_class = "hmd", activity = { present = true } }, timeout = 1500 },
+]
+note = "Unattended, the headset is not worn when it starts, so the record shows standby (or idle) throughout rather than the change from active; the change needs someone to put it on at the start."
+
+[[case]]
+id = "E20"
+group = "watch"
+title = "watch --frame reports whether the Frame shows its outside-the-play-space camera screen"
+steps = [
+    { run = ["sergulath", "watch", "--count", "1", "--frame", "--format", "json"], json = { source = "frame", key = "XRService-CameraOverlay", found = true } },
+]
+
+[[case]]
+id = "E21"
+group = "watch"
+title = "After a long idle and standby, caption check passes"
+slow = true
+steps = [
+    # SteamVR turns the screens off after power.turnOffScreensTimeout (300 s here).
+    { run = ["sergulath", "steamvr", "status", "--format", "json"], json = { running = true }, wait = 420, timeout = 600 },
+    { run = ["sergulath", "caption", "sample", "start"] },
+    { run = ["sergulath", "caption", "check", "--format", "json"], json = { rendered = true }, wait = 3 },
+    { run = ["sergulath", "caption", "sample", "stop"] },
+]
+
+# ---- view and the Frame side ---------------------------------------------------------------------
+
+[[case]]
+id = "E23"
+group = "frame"
+title = "frame overlays shows the Frame's system.systemui"
+steps = [
+    { run = ["sergulath", "frame", "overlays", "--format", "json"], json = { key = "system.systemui", found = true } },
+]
+note = "Whether the headset is outside its play space is not under the suite's control; the case checks that the Frame's own overlays are read, and records whether system.systemui is shown."
+
+# ---- the virtual headset phase (needs no person) ---------------------------------------------------
+
+[[case]]
+id = "E08"
+group = "captions"
+phase = "virtual"
+title = "overlay --placement: the one-line caption follows the head, the multi-line one the hand"
+steps = [
+    { run = ["sergulath", "overlay", "--placement", "--key", "ASTAROT0", "--format", "json"], json = { "placement.device" = "hmd", "placement.device_pose_valid" = true } },
+    { run = ["sergulath", "overlay", "--placement", "--key", "ASTAROT1", "--format", "json"], json = { "placement.device" = "controller/left", "placement.device_pose_valid" = true } },
+]
+note = "Runs on the virtual headset with the virtual left hand: a Steam Frame's controllers sleep on a desk, and the hand-held overlay then waits at the origin with no hand to follow."
+
+[[case]]
+id = "E12"
+group = "vr-ui"
+phase = "virtual"
+title = "Worn (the virtual headset looking at the wrist), the launcher's alpha goes up"
+steps = [
+    { run = ["sergulath", "controller", "pose", "--hand", "left", "--show", "ASTAROT3"] },
+    { run = ["sergulath", "overlay", "--key", "ASTAROT3", "--format", "json"], json = { visible = true, alpha = 1.0 }, wait = 6 },
+]
+note = "The list marks this case as needing someone to wear the headset; the virtual headset stands in for that."
+
+[[case]]
+id = "E16"
+group = "vr-ui"
+phase = "virtual"
+title = "The VR panel (ASTAROT2) opens and closes from the launcher's log button"
+steps = [
+    { run = ["sergulath", "overlay", "--key", "ASTAROT2", "--format", "json"], json = { visible = false } },
+    { run = ["sergulath", "overlay", "press", "--overlay", "ASTAROT3", "--button", "log", "--format", "json"], json = { hit = true } },
+    { run = ["sergulath", "overlay", "--key", "ASTAROT2", "--format", "json"], json = { visible = true }, wait = 2 },
+    { run = ["sergulath", "overlay", "press", "--overlay", "ASTAROT3", "--button", "log", "--format", "json"], json = { hit = true } },
+    { run = ["sergulath", "overlay", "--key", "ASTAROT2", "--format", "json"], json = { visible = false }, wait = 2 },
+]
+note = "The list says opening it needs a person; the virtual controllers press the launcher now."
+
+[[case]]
+id = "E17"
+group = "popup"
+phase = "virtual"
+title = "The popup (ASTAROT4) shows from the launcher's language button and closes again"
+steps = [
+    { run = ["sergulath", "overlay", "press", "--overlay", "ASTAROT3", "--button", "language", "--format", "json"], json = { hit = true } },
+    { run = ["sergulath", "overlay", "--key", "ASTAROT4", "--format", "json"], json = { visible = true }, wait = 2 },
+    { run = ["sergulath", "overlay", "press", "--overlay", "ASTAROT3", "--button", "language", "--format", "json"], json = { hit = true } },
+    { run = ["sergulath", "overlay", "--key", "ASTAROT4", "--format", "json"], json = { visible = false }, wait = 2 },
+]
+note = "The list says a notification shows ASTAROT4 and it goes away with time. In ASTAROT 0.6, ASTAROT4 is the VR UI's popup window (language, inputs and outputs, VR settings) opened from the launcher, and it does not time out; this case checks that instead until the list is settled."
+
+[[case]]
+id = "E14"
+group = "vr-ui"
+phase = "virtual"
+title = "After resetting its position, the launcher is back on the left wrist"
+steps = [
+    { run = ["sergulath", "app", "press", "設定を開く", "実験的機能", "ランチャーの位置と大きさを初期に戻す", "戻る"] },
+    { run = ["sergulath", "overlay", "--placement", "--key", "ASTAROT3", "--format", "json"], json = { "placement.device" = "controller/left", "placement.offset_distance_m" = { lt = 0.3 } }, wait = 3 },
+]
+
+# ---- cases the suite cannot run --------------------------------------------------------------------
+
+[[case]]
+id = "E19"
+group = "watch"
+title = "From tracking lost on a desk, lifting the headset brings tracking back"
+manual = "someone has to lift the headset; the virtual headset never loses tracking, so it cannot stand in"
+
+[[case]]
+id = "E22"
+group = "view"
+title = "view save: captions in the VR View while tracking; blank (exit 1) when tracking is lost"
+unsupported = "the VR View has to be opened by hand (`view open` is stage 3 of the 2026-11-23 gap plan)"
+
+[[case]]
+id = "E24"
+group = "cross-version"
+title = "overlay finds a 0.5.x ASTAROT's old keys (VRCT0 to VRCT4)"
+unsupported = "needs a 0.5.x ASTAROT installed in place of 0.6 (optional in the list); `overlay --legacy` is there for it"

@@ -9,6 +9,22 @@ main_window_title = "ASTAROT"
 # The app's log (UTC times), for `sergulath logs`.
 log = "%LOCALAPPDATA%\\ASTAROT\\logs\\process.log"
 
+# Settings for an app the tools start with a settings folder of its own (`sergulath app start
+# --settings-dir DIR --fresh`): no first-run setup, no telemetry question, nothing sent to VRChat
+# (and no firewall question for OSC), Japanese UI (the [ui.ja] names), both caption overlays on.
+[app.check_settings]
+FIRST_RUN_SETUP_PENDING = false
+TELEMETRY_NOTICE = 1
+ENABLE_TELEMETRY = false
+AUTO_DOWNLOAD_MODELS = false
+OSC_IP_ADDRESS = "127.0.0.2"
+SEND_MESSAGE_TO_VRC = false
+VRC_MIC_MUTE_SYNC = false
+WEBSOCKET_SERVER = false
+UI_LANGUAGE = "ja"
+OVERLAY_SMALL_LOG = true
+OVERLAY_LARGE_LOG = true
+
 # Which overlay shows which caption.
 [captions]
 one = "ASTAROT0"

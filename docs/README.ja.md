@@ -120,6 +120,8 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 | `sergulath overlay press` | オーバーレイの実際の位置と大きさから、仮想コントローラーのレーザーを指定の場所に向けてトリガーを押す | 2（試作） |
 | `sergulath hmd on` / `off` / `run` / `status` | 人がかぶらない確認のための仮想のヘッドセット（SteamVR に同梱の null ドライバー）。変える設定の写しを取り、失敗したときも元に戻す | 2（試作） |
 | `sergulath asr serve` | speech.cpp の代わりのサーバー（モデルの一覧と Realtime の WebSocket）。決めた文を話者のラベル付きで送り、モデルも音もなしにアプリの字幕の経路を確かめられる。[docs/checks/speaker-names.md](docs/checks/speaker-names.md) を参照 | 2（試作） |
+| `sergulath audio devices` / `check` | 音声デバイスを数秒聞き、音量（RMS とピーク、dBFS）としきい値を超えた長さを出す。再生デバイスはループバックで読む（マイクの許可は要らない）。録音デバイスは `--allow-input` のときだけ。[docs/checks/tts-virtual-mic.md](docs/checks/tts-virtual-mic.md) を参照 | 2（済み） |
+| `sergulath tts serve` | speech.cpp の代わりのサーバー。読み上げの依頼に音（または WAV）で答え、モデルなしでアプリの音声の経路を確かめられる | 2（済み） |
 | `sergulath suite list` / `run` | ケース定義ファイル（TOML）から E2E のケースを順に実行し、成功、失敗、エラー、未対応、人手、スキップを数える。ASTAROT の 24 件は `suites/astarot-e2e.toml`。[docs/checks/e2e-suite.md](docs/checks/e2e-suite.md) を参照 | 2（済み） |
 | `sergulath app status` / `start` / `stop` / `press` | 確認するアプリ。専用の設定フォルダーで起動し（`--settings-dir`、`--fresh`）、止め、ボタンを名前で押す | 2（済み） |
 

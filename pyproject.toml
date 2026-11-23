@@ -8,6 +8,10 @@ license-files = ["LICENSE", "NOTICE.md"]
 requires-python = ">=3.11"
 dependencies = ["openvr>=2.5"]
 
+[project.optional-dependencies]
+# sergulath audio: WASAPI capture with loopback (Windows only).
+audio = ["PyAudioWPatch>=0.2.12.6; sys_platform == 'win32'"]
+
 [project.scripts]
 sergulath = "sergulath.cli:main"
 

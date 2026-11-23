@@ -26,7 +26,8 @@ $results = @()
 if (-not $win) { @{ ok = $false; error = "window not found"; steps = @() } | ConvertTo-Json -Compress -Depth 4; exit }
 $buttons = New-Object Windows.Automation.OrCondition(
   (New-Object Windows.Automation.PropertyCondition($A::ControlTypeProperty, [Windows.Automation.ControlType]::Button)),
-  (New-Object Windows.Automation.PropertyCondition($A::ControlTypeProperty, [Windows.Automation.ControlType]::CheckBox)))
+  (New-Object Windows.Automation.PropertyCondition($A::ControlTypeProperty, [Windows.Automation.ControlType]::CheckBox)),
+  (New-Object Windows.Automation.PropertyCondition($A::ControlTypeProperty, [Windows.Automation.ControlType]::Edit)))
 function Find-Button($name, $prefix) {
   foreach ($b in $win.FindAll([Windows.Automation.TreeScope]::Descendants, $buttons)) {
     $n = $b.Current.Name
@@ -44,6 +45,11 @@ foreach ($s in $req.steps) {
   }
   if ($s.check_only) { $results += @{ name = $s.name; ok = $true; done = 'found' }; continue }
   $p = $null
+  if ($s.value -ne $null) {
+    if ($el.TryGetCurrentPattern([Windows.Automation.ValuePattern]::Pattern, [ref]$p)) { $p.SetValue([string]$s.value); $results += @{ name = $s.name; ok = $true; done = 'set' } }
+    else { $results += @{ name = $s.name; ok = $false; done = 'no value pattern' }; break }
+    Start-Sleep -Milliseconds ([int]$s.settle_ms); continue
+  }
   if ($el.TryGetCurrentPattern([Windows.Automation.InvokePattern]::Pattern, [ref]$p)) { $p.Invoke(); $done = 'invoke' }
   elseif ($el.TryGetCurrentPattern([Windows.Automation.TogglePattern]::Pattern, [ref]$p)) { $p.Toggle(); $done = 'toggle' }
   elseif ($el.TryGetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern, [ref]$p)) {
@@ -63,6 +69,7 @@ class Step:
     prefix: bool = False  # match names that start with `name`
     optional: bool = False  # a missing button does not stop the run
     check_only: bool = False  # only wait until the button exists
+    value: str | None = None  # set this text in a field (Edit) instead of pressing
     timeout: float = 5.0
     settle_ms: int = 400
 

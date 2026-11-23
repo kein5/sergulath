@@ -120,6 +120,8 @@ Each part is a subcommand of `sergulath`. Commands that change something have a 
 | `sergulath overlay press` | Points a virtual controller's laser at a spot on an overlay (from its real pose and size) and clicks the trigger | 2, prototype |
 | `sergulath hmd on` / `off` / `run` / `status` | A virtual headset (SteamVR's bundled null driver) for checks nobody wears, with a snapshot of the settings it changes and a restore, also after a failure | 2, prototype |
 | `sergulath asr serve` | A stand-in speech.cpp server (model list and Realtime WebSocket) that sends scripted, speaker-labelled captions, for checking an app's caption path with no model or sound. See [docs/checks/speaker-names.md](docs/checks/speaker-names.md) | 2, prototype |
+| `sergulath audio devices` / `check` | Listens to an audio device for a few seconds: level (RMS and peak, dBFS) and how long it was above a threshold; a playback device is read through its loopback (no microphone permission), a recording device only with `--allow-input`. See [docs/checks/tts-virtual-mic.md](docs/checks/tts-virtual-mic.md) | 2, done |
+| `sergulath tts serve` | A stand-in speech.cpp server that answers text to speech with a tone (or a WAV), for checking an app's speech path with no model | 2, done |
 | `sergulath suite list` / `run` | Runs end-to-end cases from a case file (TOML) and sums up pass, fail, error, unsupported, manual and skipped; ASTAROT's 24 cases are in `suites/astarot-e2e.toml`. See [docs/checks/e2e-suite.md](docs/checks/e2e-suite.md) | 2, done |
 | `sergulath app status` / `start` / `stop` / `press` | The app under check: start it with a settings folder of its own (`--settings-dir`, `--fresh`), stop it, press its buttons by accessible name | 2, done |
 

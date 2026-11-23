@@ -8,6 +8,8 @@
                                    writes DIR/config.json from the profile's [app.check_settings]
                                    (plus --set) first. Waits until its main process runs.
   app stop                         End every process of the app, with its WebView2 children.
+  app type --field NAME --text TEXT [--then BUTTON ...]
+                                   Set a field's text (such as the message box), then press buttons.
   app press NAME [NAME ...] [--prefix]
                                    Press buttons or check boxes in its main window, in order, by
                                    accessible name (Windows UI Automation; no mouse, no focus).
@@ -50,6 +52,11 @@ def add_arguments(parser) -> None:
     press.add_argument("--prefix", action="store_true", help="match names that start with each NAME")
     press.add_argument("--timeout", type=float, default=8.0, help="seconds to wait for each control (default 8)")
     output.add_format(press)
+    typing = sub.add_parser("type", help="set the text of a field by its accessible name")
+    typing.add_argument("--field", required=True, help="the field's accessible name")
+    typing.add_argument("--text", required=True)
+    typing.add_argument("--then", action="append", default=[], metavar="NAME", help="press this button after (repeatable)")
+    output.add_format(typing)
 
 
 def pids(process: str) -> list[int]:
@@ -88,6 +95,12 @@ def run(args) -> int:
         result = uia.press(pid, info["main_window_title"],
                            [uia.Step(name, prefix=args.prefix, timeout=args.timeout) for name in args.names])
         output.emit(result, ("pressed " + ", ".join(args.names)) if result.get("ok") else f"failed: {result}", args.format)
+        return output.OK if result.get("ok") else output.NOT_MET
+    if args.action == "type":
+        pid = app_core.show_main_window(info)
+        steps = [uia.Step(args.field, value=args.text)] + [uia.Step(name) for name in args.then]
+        result = uia.press(pid, info["main_window_title"], steps)
+        output.emit(result, f"typed into {args.field}" if result.get("ok") else f"failed: {result}", args.format)
         return output.OK if result.get("ok") else output.NOT_MET
     # start
     exe = app_core.executable(info)

@@ -1,0 +1,65 @@
+# The ASTAROT end-to-end suite (24 cases)
+
+`suites/astarot-e2e.toml` holds the 24 cases of the list made on 2026-11-23 (its numbers are the
+case ids E01..E24), and `sergulath suite run` runs them in order and sums them up.
+
+```sh
+sergulath suite list --cases suites/astarot-e2e.toml                   # what runs, what cannot, why
+sergulath suite run  --cases suites/astarot-e2e.toml --record records/suite/run
+sergulath suite run  --cases suites/astarot-e2e.toml --slow            # also E18 and E21 (about 30 min)
+sergulath suite run  --cases suites/astarot-e2e.toml --only E16        # one case (its phase's setup runs too)
+```
+
+Run it from the repository's root (the case file's paths are relative to it).
+
+## What it needs
+
+- SteamVR with the headset connected. A Steam Frame lying on a desk is fine: the cases that need
+  a worn headset or a hand run on the virtual headset (`hmd`) with the virtual controllers.
+- The installed ASTAROT 0.6 or later.
+- The virtual controller driver built once (`sergulath driver build`).
+- E20 and E23: SSH to the Frame (`sergulath frame`); they only read.
+
+## What it changes, and puts back
+
+- The installed ASTAROT is stopped for the run. The cases run their own ASTAROT
+  (`app start --settings-dir records/suite/app --fresh`), so pressing its settings never touches
+  the user's (ground rule 4). The installed app is started again at the end.
+- E01 stops SteamVR and starts it again through Steam.
+- The `virtual` phase (E08, E12, E14, E16, E17) switches SteamVR to the virtual headset with the
+  virtual controllers (`hmd on --with-driver`: a settings snapshot) and back (`hmd off`).
+
+Teardowns run also after a failure or an interruption. If a run dies before them anyway:
+`sergulath hmd off`, `sergulath app stop`, `sergulath app start`.
+
+## The case file
+
+The format is described at the top of `sergulath/core/suite.py`. In short: each case has steps
+(`run` = a command; `exit` = the exit codes that pass, default 0; `json` = values some JSON line of
+the output must have, with `{gt = 0}`, `{lt = 0.3}`, `{present = true}` for comparisons; `wait` =
+seconds before the step), or `unsupported` / `manual` with the reason it is not run. `phase` puts a
+case inside a phase's setup and teardown; `slow = true` runs it only with `--slow`.
+
+Statuses: pass, fail, error (a setup failed), unsupported, manual, skipped (slow). Only fail and
+error make the exit code 1.
+
+## Cases that do not run as the list wrote them
+
+| Case | Status | Why |
+|---|---|---|
+| E12 (launcher alpha when worn) | runs on the virtual headset | the list marks it as needing a person; the virtual headset looks at the virtual wrist instead |
+| E16 (the panel opens) | runs on the virtual headset | the list says opening it needs a person; the virtual controllers press the launcher now |
+| E08 (multi-line caption on the hand) | runs on the virtual headset | a Frame's controllers sleep on a desk, and the hand-held overlay then has no hand to follow |
+| E17 (popup) | checks the VR UI popup instead | the list says a notification shows ASTAROT4 and it goes away with time; in 0.6 ASTAROT4 is the VR UI's popup window (language, inputs and outputs, VR settings), opened from the launcher, with no time-out. The case opens and closes it until the list is settled |
+| E18 (20-minute watch) | slow; standby throughout | unattended, the headset is not worn at the start, so the record cannot show the change from active |
+| E19 (tracking back after lifting) | manual | someone has to lift the headset; the virtual headset never loses tracking |
+| E22 (VR View captions, blank when lost) | unsupported | the VR View has to be opened by hand; `view open` is stage 3 of the gap plan |
+| E24 (0.5.x keys) | unsupported | needs a 0.5.x install (optional in the list) |
+| E09 (pixels read) | passes on 0.6.0-beta.2 | develop builds hand the caption overlays to SteamVR as GPU textures, whose pixels cannot be read (`OverlayError_InvalidTexture`); stage 4 of the gap plan makes the headset image the route |
+
+## First run, 2026-11-23
+
+This Windows PC, SteamVR 2.19.4, a Steam Frame on the desk in standby, ASTAROT 0.6.0-beta.2
+installed: 19 passed, 0 failed, 0 errors, 2 unsupported, 1 manual, 2 skipped (of 24), in 6 minutes.
+The cleanup left the installed app running with its own settings, the Frame as the headset, no
+settings snapshot pending and the driver unregistered.

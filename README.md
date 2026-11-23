@@ -110,7 +110,7 @@ Each part is a subcommand of `sergulath`. Commands that change something have a 
 | `sergulath steamvr status` | Reports SteamVR: running or not, whether `vrmonitor` runs, its version, the headset's and controllers' state | 0, done |
 | `sergulath steamvr start` / `wait` / `stop` | Starts SteamVR through Steam, waits for the headset (connected or tracking), quits SteamVR | 0, done |
 | `sergulath settings show` / `set` / `restore` / `pending` | SteamVR settings (`section.name=value`), changed only after a snapshot of the keys, restored key by key | 0, done |
-| `sergulath view save` / `screenshot` | Saves what the headset shows: the VR View window (scene and overlays) or a SteamVR screenshot (scene only). See [What the PC can see](#what-the-pc-can-see) | 0, prototype |
+| `sergulath view save` / `screenshot` | Saves what the headset shows: the VR View window (scene and overlays), the virtual headset's window (`--headset`), or a SteamVR screenshot (scene only). See [What the PC can see](#what-the-pc-can-see) | 0, prototype |
 | `sergulath caption sample start` / `stop`, `sergulath caption check` | Sends the app's sample caption from the session side, and checks that the caption overlay renders | 0, done |
 | `sergulath frame overlays` | Reads a standalone headset's own system overlays over SSH (state, and images where readable) | 1, prototype |
 | `sergulath view open` | Opens the VR View | 1 |
@@ -119,6 +119,7 @@ Each part is a subcommand of `sergulath`. Commands that change something have a 
 | `sergulath controller connect` / `pose` / `button` / `dashboard` | Moves the virtual controllers and presses their buttons; `pose --show KEY` holds a hand so its wrist overlay faces the headset; `dashboard close` closes SteamVR's dashboard, which takes the buttons from apps | 2, prototype |
 | `sergulath overlay press` | Points a virtual controller's laser at a spot on an overlay (from its real pose and size) and clicks the trigger | 2, prototype |
 | `sergulath hmd on` / `off` / `run` / `status` | A virtual headset (SteamVR's bundled null driver) for checks nobody wears, with a snapshot of the settings it changes and a restore, also after a failure | 2, prototype |
+| `sergulath asr serve` | A stand-in speech.cpp server (model list and Realtime WebSocket) that sends scripted, speaker-labelled captions, for checking an app's caption path with no model or sound. See [docs/checks/speaker-names.md](docs/checks/speaker-names.md) | 2, prototype |
 
 Stage 0 turns the scripts that already exist into commands. Stage 1 measures how far a real headset can be checked without a person. Stage 2 is decided from those measurements.
 

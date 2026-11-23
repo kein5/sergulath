@@ -110,7 +110,7 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 | `sergulath steamvr status` | SteamVR が動いているか、`vrmonitor` が動いているか、版、ヘッドセットとコントローラーの状態を示す | 0（済み） |
 | `sergulath steamvr start` / `wait` / `stop` | SteamVR を Steam から起動し、ヘッドセットの接続（または追跡）を待ち、SteamVR を終了する | 0（済み） |
 | `sergulath settings show` / `set` / `restore` / `pending` | SteamVR の設定（`section.name=値`）。変える前に対象のキーの写しを取り、キーごとに元に戻す | 0（済み） |
-| `sergulath view save` / `screenshot` | ヘッドセットに映っているものを保存する。VR表示のウィンドウ（シーンとオーバーレイ）か、SteamVR のスクリーンショット（シーンだけ）。[PC から見えるもの](#pc-から見えるもの)を参照 | 0（試作） |
+| `sergulath view save` / `screenshot` | ヘッドセットに映っているものを保存する。VR表示のウィンドウ（シーンとオーバーレイ）、仮想のヘッドセットのウィンドウ（`--headset`）、SteamVR のスクリーンショット（シーンだけ）のどれか。[PC から見えるもの](#pc-から見えるもの)を参照 | 0（試作） |
 | `sergulath caption sample start` / `stop`、`sergulath caption check` | アプリのサンプルの字幕をセッションの側から送り、字幕のオーバーレイが描かれているかを確かめる | 0（済み） |
 | `sergulath frame overlays` | 単体で動くヘッドセット自身のシステムのオーバーレイを SSH で読む（状態と、読めるものは画像） | 1（試作） |
 | `sergulath view open` | VR表示を開く | 1 |
@@ -119,6 +119,7 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 | `sergulath controller connect` / `pose` / `button` / `dashboard` | 仮想コントローラーを動かし、ボタンを押す。`pose --show KEY` は、手首のオーバーレイがヘッドセットの正面に来るように手を置く。`dashboard close` は、アプリへのボタンを止める SteamVR のダッシュボードを閉じる | 2（試作） |
 | `sergulath overlay press` | オーバーレイの実際の位置と大きさから、仮想コントローラーのレーザーを指定の場所に向けてトリガーを押す | 2（試作） |
 | `sergulath hmd on` / `off` / `run` / `status` | 人がかぶらない確認のための仮想のヘッドセット（SteamVR に同梱の null ドライバー）。変える設定の写しを取り、失敗したときも元に戻す | 2（試作） |
+| `sergulath asr serve` | speech.cpp の代わりのサーバー（モデルの一覧と Realtime の WebSocket）。決めた文を話者のラベル付きで送り、モデルも音もなしにアプリの字幕の経路を確かめられる。[docs/checks/speaker-names.md](docs/checks/speaker-names.md) を参照 | 2（試作） |
 
 段階0ではスクリプトとしてすでにある道具をコマンドにし、段階1では実機のヘッドセットを人なしでどこまで確かめられるかを測ります。段階2はその結果を見て決めます。
 

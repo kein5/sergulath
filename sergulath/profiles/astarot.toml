@@ -5,10 +5,15 @@ name = "ASTAROT"
 [app]
 process = "astarot.exe"  # 0.7.0 and later
 legacy_process = ["vrct-vox.exe"]  # 0.6.x and earlier
-exe = "%LOCALAPPDATA%\\ASTAROT\\astarot.exe"  # the default install folder (0.5.1 and later)
+exe = "%LOCALAPPDATA%\\ASTAROT\\astarot.exe"  # the default install folder (0.7.0 and later)
+legacy_exe = [
+    "%LOCALAPPDATA%\\ASTAROT\\vrct-vox.exe",   # 0.5.1 to 0.6.x
+    "%LOCALAPPDATA%\\VRCT-VOX\\vrct-vox.exe",  # up to 0.5.0
+]
 main_window_title = "ASTAROT"
 # The app's log (UTC times), for `sergulath logs`.
 log = "%LOCALAPPDATA%\\ASTAROT\\logs\\process.log"
+legacy_log = ["%LOCALAPPDATA%\\VRCT-VOX\\logs\\process.log"]
 
 # Settings for an app the tools start with a settings folder of its own (`sergulath app start
 # --settings-dir DIR --fresh`): no first-run setup, no telemetry question, nothing sent to VRChat

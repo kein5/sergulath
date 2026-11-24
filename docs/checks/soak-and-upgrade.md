@@ -51,12 +51,12 @@ sergulath upgrade channel --channel beta --from-version 0.6.0
 sergulath upgrade check --from-version 0.6.0 --channel beta \
     --work-dir records/suite/E26 --cache-dir records/suite/cache --check-overlay ASTAROT0
 
-# Before a beta is published, substitute a local package (VRCT-VOX.zip, unpacked folder or VRCT-VOX_setup.exe):
-sergulath upgrade check --from-version 0.6.0 --to path/to/VRCT-VOX.zip \
+# Before a beta is published, substitute a local package (ASTAROT.zip, unpacked folder or ASTAROT_setup.exe):
+sergulath upgrade check --from-version 0.6.0 --to path/to/ASTAROT.zip \
     --work-dir records/suite/E26 --cache-dir records/suite/cache --check-overlay ASTAROT0
 
 # Or through the E2E suite via environment variables:
-SERGULATH_UPGRADE_TO=path/to/VRCT-VOX.zip \
+SERGULATH_UPGRADE_TO=path/to/ASTAROT.zip \
     sergulath suite run --cases suites/astarot-e2e.toml --only E26 --record records/suite/e26
 ```
 
@@ -95,9 +95,10 @@ What `upgrade check` does:
 ### Note on in-app updater UI vs sandboxed update
 
 ASTAROT's in-app updater (`tauri-plugin-updater`) compiles its manifest URLs and minisign public
-key into `vrct-vox.exe` and launches `VRCT-VOX_setup.exe /P /UPDATE /R` without `/D=`, which reads
-`$INSTDIR` from `HKCU\Software\kein5\VRCT-VOX`. Because ASTAROT itself is kept read-only and local
-unpublished packages are unsigned, `upgrade check` exercises the beta channel manifest, signed/
-SHA-256-verified package download, NSIS `/S /UPDATE /NS /D=<sandbox>` (or staged ZIP replacement
-for local builds), data preservation and post-update startup in isolation instead of triggering
-the in-app updater against the user's real installation.
+key into `astarot.exe` (`vrct-vox.exe` up to 0.6.x) and launches `ASTAROT_setup.exe /P /UPDATE /R`
+(`VRCT-VOX_setup.exe` up to 0.6.x) without `/D=`, which reads `$INSTDIR` from
+`HKCU\Software\kein5\ASTAROT` (or `HKCU\Software\kein5\VRCT-VOX` up to 0.6.x). Because ASTAROT
+itself is kept read-only and local unpublished packages are unsigned, `upgrade check` exercises the
+beta channel manifest, signed/SHA-256-verified package download, NSIS `/S /UPDATE /NS /D=<sandbox>`
+(or staged ZIP replacement for local builds), data preservation and post-update startup in isolation
+instead of triggering the in-app updater against the user's real installation.

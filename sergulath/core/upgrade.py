@@ -399,6 +399,10 @@ def apply_package_update(install_dir: Path, source: Path, exe_name: str | Sequen
         raise ValueError(f"unsupported package source: {source}")
 
     entries = [p for p in payload.iterdir() if p.name not in USER_DATA_ENTRIES]
+    payload_names = {p.name.lower() for p in entries}
+    known_exes = _exe_names(exe_name)
+    # Remove any older executable name left behind when the update renames the binary (0.6 -> 0.7).
+    stale_exes = [name for name in known_exes if name.lower() not in payload_names and (install_dir / name).is_file()]
     replaced: list[str] = []
     added: list[str] = []
     try:
@@ -410,6 +414,9 @@ def apply_package_update(install_dir: Path, source: Path, exe_name: str | Sequen
             else:
                 added.append(item.name)
             _move_entry(item, target)
+        for old_exe in stale_exes:
+            _move_entry(install_dir / old_exe, backup / old_exe)
+            replaced.append(old_exe)
     except Exception:
         # Roll back to the prior files.
         for name in reversed(added):
@@ -802,8 +809,16 @@ def run_upgrade_check(
                 dl_name = dl_url.rsplit("/", 1)[-1]
                 target_source = download(dl_url, cache / f"v{channel_status.channel_version}" / dl_name, sha256_url=dl_url + ".sha256")
             else:
-                dl_url = _github_release_asset_url(repository, channel_status.channel_version, package_asset)
-                target_source = download(dl_url, cache / f"v{channel_status.channel_version}" / package_asset, sha256_url=dl_url + ".sha256")
+                target_error: Exception | None = None
+                for asset in base_package_assets:
+                    dl_url = _github_release_asset_url(repository, channel_status.channel_version, asset)
+                    try:
+                        target_source = download(dl_url, cache / f"v{channel_status.channel_version}" / asset, sha256_url=dl_url + ".sha256")
+                        break
+                    except Exception as e:
+                        target_error = e
+                if target_source is None:
+                    raise target_error or RuntimeError(f"could not download package for {channel_status.channel_version}")
         if use_installer:
             installer_runner(install_dir, target_source, registry_keys, work_dir / "registry-update.json")
         else:

@@ -63,7 +63,35 @@ class RenamedExecutableTest(unittest.TestCase):
             self.assertEqual(upgrade.find_exe(install, names), install / "vrct-vox.exe")
             upgrade.apply_package_update(install, new_zip, names)
             self.assertEqual(upgrade.find_exe(install, names), install / "astarot.exe")
+            self.assertFalse((install / "vrct-vox.exe").exists(), "stale old executable is removed")
             self.assertEqual(_fake_version_reader(install / "astarot.exe"), "0.7.0-beta.1")
+
+    def test_full_upgrade_check_crosses_rename(self):
+        profile = profiles.load("astarot")
+        boots = []
+
+        def fake_boot(exe, settings_dir, window_title, **kw):
+            boots.append((exe.name, _fake_version_reader(exe)))
+            return True, True, ""
+
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            old_zip = _make_package_zip(root / "VRCT-VOX.zip", "0.6.0")
+            new_zip = root / "ASTAROT.zip"
+            with zipfile.ZipFile(new_zip, "w") as zf:
+                zf.writestr("astarot.exe", b"VERSION=0.7.0-beta.1\n")
+                zf.writestr("_internal/runtime.txt", b"runtime-0.7.0-beta.1\n")
+            result = upgrade.run_upgrade_check(
+                profile=profile,
+                work_dir=root / "work",
+                from_path=old_zip,
+                from_version="0.6.0",
+                to_path=new_zip,
+                version_reader=_fake_version_reader,
+                boot_runner=fake_boot,
+            )
+        self.assertEqual(result.status, "pass", result.reason)
+        self.assertEqual(boots, [("vrct-vox.exe", "0.6.0"), ("astarot.exe", "0.7.0-beta.1")])
 
     def test_package_without_any_known_name_is_refused(self):
         with tempfile.TemporaryDirectory() as root:

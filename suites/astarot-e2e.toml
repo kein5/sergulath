@@ -3,7 +3,7 @@
 #
 #     sergulath suite run --cases suites/astarot-e2e.toml --record records/suite/run
 #     sergulath suite run --cases suites/astarot-e2e.toml --slow     # also E18, E21, E25 (about 60 min)
-#     SERGULATH_UPGRADE_TO=path/to/VRCT-VOX.zip sergulath suite run --cases suites/astarot-e2e.toml --only E26
+#     SERGULATH_UPGRADE_TO=path/to/ASTAROT.zip sergulath suite run --cases suites/astarot-e2e.toml --only E26
 #
 # What it needs: SteamVR with the headset connected (a Steam Frame lying on a desk is fine),
 # the installed ASTAROT 0.6 or later, the virtual controller driver built (`sergulath driver
@@ -356,4 +356,4 @@ title = "Upgrade from 0.6.0 to beta (or local package) keeps settings and models
 steps = [
     { run = ["sergulath", "upgrade", "check", "--from-version", "0.6.0", "--channel", "beta", "--work-dir", "records/suite/E26", "--cache-dir", "records/suite/cache", "--check-overlay", "ASTAROT0", "--format", "json"], json = { source = "upgrade", ok = true, settings_preserved = true, models_preserved = true, launched_ok = true }, unsupported_when = { source = "upgrade", status = "unsupported" }, timeout = 900 },
 ]
-note = "Stages an isolated 0.6.0 copy in records/suite/E26/install (never touches the user's installed ASTAROT or settings; ground rule 4), seeds non-default settings and synthetic model files under downloaded_models/, then updates via the beta channel (beta/latest.json). While no beta newer than 0.6.0 is published yet, set SERGULATH_UPGRADE_TO (and optionally SERGULATH_UPGRADE_FROM) to a local VRCT-VOX.zip, unpacked folder or VRCT-VOX_setup.exe to run this case; otherwise it reports unsupported."
+note = "Stages an isolated 0.6.0 copy in records/suite/E26/install (never touches the user's installed ASTAROT or settings; ground rule 4), seeds non-default settings and synthetic model files under downloaded_models/, then updates via the beta channel (beta/latest.json). Handles the 0.7.0 rename from vrct-vox.exe to astarot.exe across the update. While no beta newer than 0.6.0 is published, set SERGULATH_UPGRADE_TO (and optionally SERGULATH_UPGRADE_FROM) to a local ASTAROT.zip / VRCT-VOX.zip, unpacked folder or setup.exe to run this case; otherwise it reports unsupported."

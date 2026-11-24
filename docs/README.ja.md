@@ -113,8 +113,8 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 | `sergulath view save` / `screenshot` | ヘッドセットに映っているものを保存する。VR表示のウィンドウ（シーンとオーバーレイ）、仮想のヘッドセットのウィンドウ（`--headset`）、SteamVR のスクリーンショット（シーンだけ）のどれか。[PC から見えるもの](#pc-から見えるもの)を参照 | 0（試作） |
 | `sergulath caption sample start` / `stop`、`sergulath caption check` | アプリのサンプルの字幕をセッションの側から送り、字幕のオーバーレイが描かれているかを確かめる | 0（済み） |
 | `sergulath frame overlays` | 単体で動くヘッドセット自身のシステムのオーバーレイを SSH で読む（状態と、読めるものは画像） | 1（試作） |
-| `sergulath view open` | VR表示を開く | 1 |
-| `sergulath chaperone show` / `apply` / `restore` | プレイエリア。`apply` は chaperone の設定 API の作業用の写しを使い、今の起動のあいだだけ反映する | 1 |
+| `sergulath view open` / `close` | 人の手なしで VR表示を開き（`steamvr.showMirrorView` の写しを取って SteamVR を起動し直す）、元に戻す。[docs/checks/view-and-chaperone.md](view-and-chaperone.md) を参照 | 1（済み） |
+| `sergulath chaperone show` / `apply` / `restore` | プレイエリアを読む。`chaperone_info.vrchap` の写しを取ってから、chaperone の設定 API で大きさ（と壁）を設定する。`restore` でファイルを書き戻す。SteamVR 2.19.4 は「一時的」な反映もファイルに書くので、変更は今の起動のあいだだけでは終わらず、`restore` まで残る | 1（済み） |
 | `sergulath driver build` / `register` / `unregister` / `run` / `status` | 仮想コントローラーのドライバー（左手と右手を出す OpenVR のドライバー）。確認のあいだだけ登録する。[オーバーレイを押す](#オーバーレイを押す)を参照 | 2（試作。前倒し） |
 | `sergulath controller connect` / `pose` / `button` / `dashboard` | 仮想コントローラーを動かし、ボタンを押す。`pose --show KEY` は、手首のオーバーレイがヘッドセットの正面に来るように手を置く。`dashboard close` は、アプリへのボタンを止める SteamVR のダッシュボードを閉じる | 2（試作） |
 | `sergulath overlay press` | オーバーレイの実際の位置と大きさから、仮想コントローラーのレーザーを指定の場所に向けてトリガーを押す | 2（試作） |
@@ -149,7 +149,7 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 | オーバーレイの画素（`GetOverlayImageData`） | 画素で渡されたオーバーレイだけ読める。`system.systemui`（ボタンを含む UI の画像の寄せ集め）は読める。カメラの映像、ヘッドセットのビュー、Steam の画面は GPU のテクスチャで、エラー24 になる |
 | ヘッドセットに映る合成後の画像 | まだ見つかっていない。コンポジターのデバッグ用のコマンド `screenshot_all_request` は受け付けられたが何も書かなかった。Vulkan の取得用のレイヤーを使うには、設定を変えてコンポジターを起動し直す必要があり、読み取りだけのこの道具ではしない |
 
-VR表示にシーンが映るのは、ヘッドセットが位置を出している間だけです。机に置いた Frame が位置を見失う（追跡の状態が `calibrating_out_of_range`）と黒くなります。そのとき `view save` は画像が空だと報告し、終了コード1で終わります。
+VR表示にシーンが映るのは、ヘッドセットが位置を出している間だけです。机に置いた Frame が位置を見失う（追跡の状態が `calibrating_out_of_range`）と、ツールバーより下が一色（黒か灰色）になります。そのとき `view save` は画像が空だと報告し、終了コード1で終わります。仮想のヘッドセットでは VR表示はずっと黒いままです。null ドライバーがミラーを渡さないためで、そこでは `view save --headset` を使います。
 
 ## 守ること
 

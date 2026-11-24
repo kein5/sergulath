@@ -109,6 +109,24 @@ def capture_client(hwnd: int) -> tuple[int, int, bytes]:
     return width, height, bytes(data)
 
 
-def is_blank(rgba: bytes) -> bool:
-    """True when every pixel has the same colour (a black or empty capture)."""
-    return len(set(rgba[i:i + 3] for i in range(0, min(len(rgba), 4 * 50_000), 4 * 97))) <= 1
+def is_blank(rgba: bytes, width: int = 0, skip_top_rows: int = 0) -> bool:
+    """True when every sampled pixel has the same colour (a black, grey or empty capture).
+
+    `skip_top_rows` (with the image's `width`) leaves out a band at the top, such as the VR View's
+    own toolbar, which vrmonitor draws over the mirror even when the mirror is empty.
+    """
+    start = 4 * width * skip_top_rows if width else 0
+    body = rgba[start:]
+    step = max(1, len(body) // 4 // 50_000)
+    return len(set(body[i:i + 3] for i in range(0, len(body), 4 * (97 * step)))) <= 1
+
+
+# The VR View's toolbar (menu, "dock", "full screen") covers about the top 6% of the window;
+# 10% leaves a margin for display scaling.
+VR_VIEW_TOOLBAR_SHARE = 0.10
+
+
+def vr_view_is_blank(rgba: bytes, width: int, height: int) -> bool:
+    """Whether the VR View shows nothing below its toolbar: the empty grey it shows while the
+    headset is not tracking, or black."""
+    return is_blank(rgba, width, int(height * VR_VIEW_TOOLBAR_SHARE + 0.5))

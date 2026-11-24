@@ -113,8 +113,8 @@ Each part is a subcommand of `sergulath`. Commands that change something have a 
 | `sergulath view save` / `screenshot` | Saves what the headset shows: the VR View window (scene and overlays), the virtual headset's window (`--headset`), or a SteamVR screenshot (scene only). See [What the PC can see](#what-the-pc-can-see) | 0, prototype |
 | `sergulath caption sample start` / `stop`, `sergulath caption check` | Sends the app's sample caption from the session side, and checks that the caption overlay renders | 0, done |
 | `sergulath frame overlays` | Reads a standalone headset's own system overlays over SSH (state, and images where readable) | 1, prototype |
-| `sergulath view open` | Opens the VR View | 1 |
-| `sergulath chaperone show` / `apply` / `restore` | The play area; `apply` uses the chaperone setup API's working copy for this session only | 1 |
+| `sergulath view open` / `close` | Opens the VR View unattended (a snapshot of `steamvr.showMirrorView` and a SteamVR restart) and undoes it. See [docs/checks/view-and-chaperone.md](docs/checks/view-and-chaperone.md) | 1, done |
+| `sergulath chaperone show` / `apply` / `restore` | The play area: read it; set a size (and walls) through the chaperone setup API after a snapshot of `chaperone_info.vrchap`; write the file back. SteamVR 2.19.4 keeps even a "temporary" commit on disk, so the change lasts until `restore`, not for the session only | 1, done |
 | `sergulath driver build` / `register` / `unregister` / `run` / `status` | A virtual controller driver (an OpenVR driver with a left and a right hand), registered only for a check. See [Pressing an overlay](#pressing-an-overlay) | 2, prototype (brought forward) |
 | `sergulath controller connect` / `pose` / `button` / `dashboard` | Moves the virtual controllers and presses their buttons; `pose --show KEY` holds a hand so its wrist overlay faces the headset; `dashboard close` closes SteamVR's dashboard, which takes the buttons from apps | 2, prototype |
 | `sergulath overlay press` | Points a virtual controller's laser at a spot on an overlay (from its real pose and size) and clicks the trigger | 2, prototype |
@@ -149,7 +149,7 @@ On the headset (Steam Frame, over SSH with a registered key; `sergulath frame ov
 | Overlay pixels (`GetOverlayImageData`) | only raw-pixel overlays: `system.systemui` (a UI atlas with the button). The camera view, the headset view and Steam's UI are GPU textures and answer error 24 |
 | The composited headset image | not found yet. The compositor's debug command `screenshot_all_request` was accepted but wrote nothing; a Vulkan capture layer would need the compositor restarted with changed settings, which these read-only tools do not do |
 
-The VR View shows the scene only while the headset tracks. When a Frame on a desk loses tracking (tracking result `calibrating_out_of_range`), the view goes black; `view save` then reports the image as blank and exits with 1.
+The VR View shows the scene only while the headset tracks. When a Frame on a desk loses tracking (tracking result `calibrating_out_of_range`), the view below its toolbar turns one flat colour (black or grey); `view save` then reports the image as blank and exits with 1. Under the virtual headset the VR View stays black: the null driver gives it no mirror, so use `view save --headset` there.
 
 ## Ground rules
 

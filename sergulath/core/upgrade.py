@@ -20,6 +20,7 @@ import time
 import urllib.error
 import urllib.request
 import zipfile
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -329,14 +330,27 @@ def extract_zip_safe(archive: Path, dest: Path) -> Path:
     return dest
 
 
-def _resolve_payload_root(folder: Path, exe_name: str) -> Path:
-    """Return `folder` if `exe_name` is directly inside it, or its single wrapper subdirectory."""
-    if (folder / exe_name).is_file():
+def _exe_names(exe_name: str | Sequence[str]) -> list[str]:
+    """One executable name or several (the current name first, then older names)."""
+    return [exe_name] if isinstance(exe_name, str) else list(exe_name)
+
+
+def find_exe(folder: Path, exe_name: str | Sequence[str]) -> Path | None:
+    """The first of the names that exists as a file in `folder` (ASTAROT 0.7 renamed vrct-vox.exe)."""
+    for name in _exe_names(exe_name):
+        if (folder / name).is_file():
+            return folder / name
+    return None
+
+
+def _resolve_payload_root(folder: Path, exe_name: str | Sequence[str]) -> Path:
+    """Return `folder` if an executable is directly inside it, or its single wrapper subdirectory."""
+    if find_exe(folder, exe_name):
         return folder
     entries = [p for p in folder.iterdir() if p.name != "__MACOSX"]
-    if len(entries) == 1 and entries[0].is_dir() and (entries[0] / exe_name).is_file():
+    if len(entries) == 1 and entries[0].is_dir() and find_exe(entries[0], exe_name):
         return entries[0]
-    raise ValueError(f"package does not contain {exe_name}: {folder}")
+    raise ValueError(f"package does not contain {' or '.join(_exe_names(exe_name))}: {folder}")
 
 
 def _move_entry(src: Path, dst: Path) -> None:
@@ -348,7 +362,7 @@ def _move_entry(src: Path, dst: Path) -> None:
     shutil.move(str(src), str(dst))
 
 
-def apply_package_update(install_dir: Path, source: Path, exe_name: str) -> str:
+def apply_package_update(install_dir: Path, source: Path, exe_name: str | Sequence[str]) -> str:
     """Stage and apply a ZIP archive or unpacked directory into `install_dir`, keeping user data.
 
     Mirrors ASTAROT's NSIS commit staging (`install_dir/.upd/new`, `.upd/old`): rolls back any
@@ -639,9 +653,12 @@ def run_upgrade_check(
     app_info = profile["app"]
     up_info = profile.get("upgrade", {})
     exe_name = app_info["process"]
+    # Names an older version used (0.6 and earlier: vrct-vox.exe); the current name comes first.
+    exe_names = [exe_name, *app_info.get("legacy_process", [])]
     window_title = app_info["main_window_title"]
     repository = up_info.get("repository", "kein5/astarot")
-    package_asset = up_info.get("package_asset", "VRCT-VOX.zip")
+    package_asset = up_info.get("package_asset", "ASTAROT.zip")
+    base_package_assets = [package_asset, *up_info.get("legacy_package_assets", [])]
     models_dir_name = up_info.get("models_dir", "downloaded_models")
     registry_keys = list(up_info.get("registry_keys", []))
     base_settings = dict(app_info.get("check_settings", {}))
@@ -726,23 +743,30 @@ def run_upgrade_check(
                 work_dir=str(work_dir), reason=f"old package does not exist: {source_old}",
             )
     else:
-        old_url = _github_release_asset_url(repository, from_version, package_asset)
-        old_dest = cache / f"v{from_version}" / package_asset
-        try:
-            source_old = download(old_url, old_dest, sha256_url=old_url + ".sha256")
-        except Exception as e:
+        # The asset is named after the app at that version, so try the current name, then older ones.
+        source_old = None
+        download_error: Exception | None = None
+        for asset in base_package_assets:
+            old_url = _github_release_asset_url(repository, from_version, asset)
+            old_dest = cache / f"v{from_version}" / asset
+            try:
+                source_old = download(old_url, old_dest, sha256_url=old_url + ".sha256")
+                break
+            except Exception as e:
+                download_error = e
+        if source_old is None:
             return UpgradeResult(
                 status="fail", ok=False, from_version=from_version, delivery=delivery, channel=channel,
-                work_dir=str(work_dir), reason=f"could not download base version {from_version}: {e}",
+                work_dir=str(work_dir), reason=f"could not download base version {from_version}: {download_error}",
             )
 
     if source_old.suffix.lower() == ".exe":
         installer_runner(install_dir, source_old, registry_keys, work_dir / "registry-old.json")
     else:
-        apply_package_update(install_dir, source_old, exe_name)
+        apply_package_update(install_dir, source_old, exe_names)
 
-    exe_path = install_dir / exe_name
-    if not exe_path.is_file():
+    exe_path = find_exe(install_dir, exe_names)
+    if exe_path is None:
         return UpgradeResult(
             status="fail", ok=False, from_version=from_version, delivery=delivery, channel=channel,
             work_dir=str(work_dir), reason=f"{exe_name} not found after staging {from_version}",
@@ -783,7 +807,7 @@ def run_upgrade_check(
         if use_installer:
             installer_runner(install_dir, target_source, registry_keys, work_dir / "registry-update.json")
         else:
-            apply_package_update(install_dir, target_source, exe_name)
+            apply_package_update(install_dir, target_source, exe_names)
     except UacRequiredError as e:
         return UpgradeResult(
             status="fail", ok=False, from_version=actual_old, delivery=delivery, channel=channel,
@@ -795,6 +819,8 @@ def run_upgrade_check(
             work_dir=str(work_dir), reason=f"update failed: {e}",
         )
 
+    # The update may have renamed the executable (0.7: vrct-vox.exe to astarot.exe).
+    exe_path = find_exe(install_dir, exe_names) or exe_path
     actual_new = version_reader(exe_path) or (expect_version or "")
     report_stage("apply", version=actual_new, method="installer" if use_installer else "package")
 

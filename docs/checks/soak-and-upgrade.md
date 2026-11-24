@@ -69,6 +69,9 @@ What `upgrade check` does:
    runner maps that to `UNSUPPORTED` (not `FAIL`).
 2. **Stage base version (0.6.0)**: unpacks `--from` (`SERGULATH_UPGRADE_FROM`), or downloads and
    SHA-256-verifies `v0.6.0`'s `VRCT-VOX.zip` into `--cache-dir`, into `<work-dir>/install`.
+   ASTAROT 0.7.0 renamed the executable (`vrct-vox.exe` to `astarot.exe`) and the assets
+   (`ASTAROT.zip`, `ASTAROT_setup.exe`); the profile lists the new names first and the old ones as
+   `legacy_*`, so an update across the rename finds the right file on both sides.
 3. **Seed state**: writes `config.json` from the profile's `[app.check_settings]` plus non-default
    sentinel values (`SELECTED_RELEASE_CHANNEL = "beta"`, `RELEASE_CHANNEL_CHOSEN = true`,
    `TRANSPARENCY = 87`, `MIC_THRESHOLD = 456`) and creates synthetic sentinel model files under
@@ -78,9 +81,9 @@ What `upgrade check` does:
    - For a `.zip` or unpacked folder: stages into `.upd/new`, swaps only app-owned entries with
      rollback on error, and leaves user data (`config.json`, `downloaded_models/`, `logs/`, etc.)
      untouched.
-   - For an NSIS `VRCT-VOX_setup.exe` (or beta channel installer): snapshots the installer's HKCU
-     registry keys (`Software\kein5\VRCT-VOX` and
-     `Software\Microsoft\Windows\CurrentVersion\Uninstall\VRCT-VOX`), runs
+   - For an NSIS `ASTAROT_setup.exe` (or beta channel installer): snapshots the installer's HKCU
+     registry keys (`Software\kein5\ASTAROT`, `Software\kein5\VRCT-VOX` and the matching
+     `Software\Microsoft\Windows\CurrentVersion\Uninstall\` keys), runs
      `setup.exe /S /UPDATE /NS /D=<sandbox>` (silent, no shortcuts, no extra offers), aborts if
      UAC elevation is required, and always restores the HKCU registry keys in `finally` (ground
      rule 2).

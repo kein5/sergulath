@@ -46,6 +46,35 @@ class SemVerTest(unittest.TestCase):
         self.assertFalse(upgrade.is_newer("0.6.0-beta.2", "0.6.0"))
 
 
+class RenamedExecutableTest(unittest.TestCase):
+    """0.7 renamed vrct-vox.exe to astarot.exe: the update crosses the rename."""
+
+    def test_update_from_old_name_to_new_name(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            install = root / "install"
+            names = ["astarot.exe", "vrct-vox.exe"]
+            old_zip = _make_package_zip(root / "old.zip", "0.6.0")
+            new_zip = root / "new.zip"
+            with zipfile.ZipFile(new_zip, "w") as zf:
+                zf.writestr("astarot.exe", b"VERSION=0.7.0-beta.1\n")
+                zf.writestr("_internal/runtime.txt", b"runtime-0.7.0-beta.1\n")
+            upgrade.apply_package_update(install, old_zip, names)
+            self.assertEqual(upgrade.find_exe(install, names), install / "vrct-vox.exe")
+            upgrade.apply_package_update(install, new_zip, names)
+            self.assertEqual(upgrade.find_exe(install, names), install / "astarot.exe")
+            self.assertEqual(_fake_version_reader(install / "astarot.exe"), "0.7.0-beta.1")
+
+    def test_package_without_any_known_name_is_refused(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            bad = root / "bad.zip"
+            with zipfile.ZipFile(bad, "w") as zf:
+                zf.writestr("other.exe", b"x")
+            with self.assertRaises(ValueError):
+                upgrade.apply_package_update(root / "install", bad, ["astarot.exe", "vrct-vox.exe"])
+
+
 class PackageUpdateTest(unittest.TestCase):
     def test_zip_update_preserves_user_settings_and_models(self):
         with tempfile.TemporaryDirectory() as root:

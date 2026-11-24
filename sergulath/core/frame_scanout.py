@@ -1,4 +1,5 @@
 """Runs ON a Steam Frame: save what its panel shows (the scanout framebuffer) as PNG.
+Started by `sergulath frame shot`, which copies it to a temporary folder there.
 
 Candidate A of the 2026-11-23 frame-shot study. The panel's current framebuffer holds the final
 image the headset shows: both eyes side by side, after the lens correction, with everything the
@@ -21,8 +22,10 @@ import json
 import os
 import struct
 import sys
+import time
 import zlib
 
+STARTED = time.monotonic()
 SAVE_DIR = os.environ.get("SERGULATH_SAVE_DIR", "")
 NAME = os.environ.get("SERGULATH_NAME", "frame-scanout")
 
@@ -56,8 +59,9 @@ class Plane(ctypes.Structure):
 
 
 class FB2(ctypes.Structure):
+    # libdrm's drmModeFB2: the handles come before the pitches and offsets.
     _fields_ = [("fb_id", u32), ("width", u32), ("height", u32), ("pixel_format", u32), ("modifier", ctypes.c_uint64),
-                ("flags", u32), ("pitches", u32 * 4), ("offsets", u32 * 4), ("handles", u32 * 4)]
+                ("flags", u32), ("handles", u32 * 4), ("pitches", u32 * 4), ("offsets", u32 * 4)]
 
 
 drm = ctypes.CDLL("libdrm.so.2", use_errno=True)
@@ -109,7 +113,8 @@ try:
     fcntl.ioctl(card, 0x40086409, gem_close)  # DRM_IOCTL_GEM_CLOSE: drop our handle; the dma-buf keeps the memory
 except OSError:
     pass
-say(step="handle", ok=True)
+say(step="handle", ok=True, ms=round((time.monotonic() - STARTED) * 1000))
+read_started = time.monotonic()
 
 # 3. EGL import and read-back (no root needed for this part).
 egl = ctypes.CDLL("libEGL.so.1")
@@ -149,10 +154,13 @@ os.close(prime.value)
 data = buf.raw
 lit = sum(1 for i in range(0, len(data), 4 * 101) if data[i:i + 3] != b"\x00\x00\x00")
 record = {"step": "read", "ok": error == 0, "gl_error": error, "width": width, "height": height,
-          "lit_share": round(lit / (len(data) // (4 * 101)), 3)}
+          "lit_share": round(lit / (len(data) // (4 * 101)), 3),
+          "read_ms": round((time.monotonic() - read_started) * 1000)}
 if SAVE_DIR and error == 0:
     path = os.path.join(SAVE_DIR, NAME + ".png")
+    png_started = time.monotonic()
     write_png(path, width, height, data)
+    record["png_ms"] = round((time.monotonic() - png_started) * 1000)
     uid, gid = int(os.environ.get("SUDO_UID", os.getuid())), int(os.environ.get("SUDO_GID", os.getgid()))
     try:
         os.chown(path, uid, gid)  # so the unprivileged user can copy it back and remove it

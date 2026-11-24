@@ -130,6 +130,7 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 | `sergulath view save` / `screenshot` | ヘッドセットに映っているものを保存する。VR表示のウィンドウ（シーンとオーバーレイ）、仮想のヘッドセットのウィンドウ（`--headset`）、SteamVR のスクリーンショット（シーンだけ）のどれか。`--headset --overlay KEY` は SteamVR が画素を渡さないオーバーレイを、仮想のヘッドセットの映像から切り出す。[PC から見えるもの](#pc-から見えるもの)と [docs/checks/headset-view.md](checks/headset-view.md) を参照 | 0（済み） |
 | `sergulath caption sample start` / `stop`、`sergulath caption check` | アプリのサンプルの字幕をセッションの側から送り、字幕のオーバーレイが描かれているかを確かめる | 0（済み） |
 | `sergulath frame overlays` | 単体で動くヘッドセット自身のシステムのオーバーレイを SSH で読む（状態と、読めるものは画像） | 1（試作） |
+| `sergulath frame shot` | Steam Frame のパネルに出ているもの（表示中のフレームバッファ。両目とカメラの画面を含む）を保存する。root が1回要る。パスワードはセッションの道具が書く使い切りのファイルから読み、sudo にだけ渡す。[docs/checks/frame-shot.md](checks/frame-shot.md) を参照 | 2（試作。待機中の画面は取れた。起きている画面はまだ） |
 | `sergulath view open` / `close` | 人の手なしで VR表示を開き（`steamvr.showMirrorView` の写しを取って SteamVR を起動し直す）、元に戻す。[docs/checks/view-and-chaperone.md](checks/view-and-chaperone.md) を参照 | 1（済み） |
 | `sergulath chaperone show` / `apply` / `restore` | プレイエリアを読む。`chaperone_info.vrchap` の写しを取ってから、chaperone の設定 API で大きさ（と壁）を設定する。`restore` でファイルを書き戻す。SteamVR 2.19.4 は「一時的」な反映もファイルに書くので、変更は今の起動のあいだだけでは終わらず、`restore` まで残る | 1（済み） |
 | `sergulath driver build` / `register` / `unregister` / `run` / `status` | 仮想コントローラーのドライバー（左手と右手を出す OpenVR のドライバー）。確認のあいだだけ登録する。[オーバーレイを押す](#オーバーレイを押す)を参照 | 2（試作。前倒し） |
@@ -163,7 +164,7 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 |---|---|
 | オーバーレイの状態（表示、透明度） | どのシステムのオーバーレイでも読める。その画面が出ているかがわかる |
 | オーバーレイの画素（`GetOverlayImageData`） | 画素で渡されたオーバーレイだけ読める。`system.systemui`（ボタンを含む UI の画像の寄せ集め）は読める。カメラの映像、ヘッドセットのビュー、Steam の画面は GPU のテクスチャで、エラー24 になる |
-| ヘッドセットに映る合成後の画像 | まだ取れていない。コンポジターのデバッグ用のコマンド `screenshot_all_request` は受け付けられたが何も書かなかった。Vulkan の取得用のレイヤーを使うには、設定を変えてコンポジターを起動し直す必要があり、読み取りだけのこの道具ではしない。ヘッドセット上のクライアントには OpenVR のミラーが渡されない。パネルのフレームバッファを読む方法は、root が要る1か所の手前まで確かめた。パスワードの受け渡し方が決まるまで、そこで止めている（[docs/checks/frame-shot.md](checks/frame-shot.md)） |
+| ヘッドセットに映る合成後の画像 | `sergulath frame shot` で取れる。パネルのフレームバッファを読むので、両目がレンズの補正のあとの形で写る（4320×2160、1回1秒未満）。取るたびに root が1回要り、パスワードは使い切りの入力欄から渡す。待機中のパネルは一色だった。コンポジターのデバッグ用のコマンド `screenshot_all_request` は何も書かず、ヘッドセット上のクライアントには OpenVR のミラーが渡されない（[docs/checks/frame-shot.md](checks/frame-shot.md)） |
 
 VR表示にシーンが映るのは、ヘッドセットが位置を出している間だけです。机に置いた Frame が位置を見失う（追跡の状態が `calibrating_out_of_range`）と、ツールバーより下が一色（黒か灰色）になります。そのとき `view save` は画像が空だと報告し、終了コード1で終わります。仮想のヘッドセットでは VR表示はずっと黒いままです。null ドライバーがミラーを渡さないためで、そこでは `view save --headset` を使います。
 

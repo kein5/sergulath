@@ -187,9 +187,24 @@ class AppStartTest(unittest.TestCase):
             self.assertIs(config["OVERLAY_VR_PANEL"], True)
             self.assertEqual(config["OSC_IP_ADDRESS"], "127.0.0.2")
             self.assertEqual(started["env"]["VRCT_CONFIG_DIR"], str(Path(root).resolve()))
+            self.assertEqual(started["env"]["ASTAROT_CONFIG_DIR"], str(Path(root).resolve()))
             code, _, err = _run(["app", "start", "--fresh"])
             self.assertEqual(code, output.USAGE)
             self.assertIn("never written", err)
+
+
+class BundledAstarotSuiteTest(unittest.TestCase):
+    def test_astarot_e2e_suite_loads_all_26_cases(self):
+        loaded = suite.load(Path("suites/astarot-e2e.toml"))
+        ids = [c.id for c in loaded.cases]
+        self.assertEqual(len(ids), 26)
+        self.assertIn("E25", ids)
+        self.assertIn("E26", ids)
+        by_id = {c.id: c for c in loaded.cases}
+        self.assertTrue(by_id["E25"].slow)
+        self.assertEqual(by_id["E25"].phase, "soak")
+        self.assertEqual(by_id["E26"].phase, "upgrade")
+        self.assertTrue(by_id["E26"].steps[0].unsupported_when)
 
 if __name__ == "__main__":
     unittest.main()

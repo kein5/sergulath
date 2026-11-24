@@ -92,9 +92,17 @@ def run(args) -> int:
                 logs.append(_read(folder / f"{name}.txt", since, name))
     elif sources & {"vrserver", "vrcompositor"}:
         output.note("Steam's logs folder was not found")
-    app_log = profiles.load(args.profile).get("app", {}).get("log")
+    app_info = profiles.load(args.profile).get("app", {})
+    app_log = app_info.get("log")
     if "app" in sources and app_log:
-        logs.append(_read(Path(os.path.expandvars(app_log)), since, "app"))
+        log_path = Path(os.path.expandvars(app_log))
+        if not log_path.is_file():
+            for raw in app_info.get("legacy_log", []):
+                candidate = Path(os.path.expandvars(raw))
+                if candidate.is_file():
+                    log_path = candidate
+                    break
+        logs.append(_read(log_path, since, "app"))
     lines = merge(*logs)
     if args.grep:
         lines = [line for line in lines if args.grep.lower() in line.text.lower()]

@@ -1,12 +1,13 @@
 """sergulath app: the app under check (from its profile): status, start, stop, press.
 
   app status                       Whether it runs, its process ids and executable.
-  app start [--settings-dir DIR [--fresh] [--set KEY=VALUE ...]]
+  app start [--exe FILE] [--settings-dir DIR [--fresh] [--set KEY=VALUE ...]]
                                    Start it. With --settings-dir it runs with a settings folder of
-                                   its own (VRCT_CONFIG_DIR) and a WebView2 folder inside it, so a
-                                   check never touches the user's settings (ground rule 4). --fresh
-                                   writes DIR/config.json from the profile's [app.check_settings]
-                                   (plus --set) first. Waits until its main process runs.
+                                   its own (ASTAROT_CONFIG_DIR / VRCT_CONFIG_DIR) and a WebView2
+                                   folder inside it, so a check never touches the user's settings
+                                   (ground rule 4). --fresh writes DIR/config.json from the
+                                   profile's [app.check_settings] (plus --set) first. Waits until
+                                   its main process runs.
   app stop                         End every process of the app, with its WebView2 children.
   app type --field NAME --text TEXT [--then BUTTON ...]
                                    Set a field's text (such as the message box), then press buttons.
@@ -71,23 +72,36 @@ def pids(process: str) -> list[int]:
     return found
 
 
+def _all_pids(names: list[str]) -> list[tuple[str, int]]:
+    found: list[tuple[str, int]] = []
+    for name in names:
+        for pid in pids(name):
+            found.append((name, pid))
+    return found
+
+
 def run(args) -> int:
     profile = profiles.load(args.profile)
     info = profile["app"]
+    names = app_core.process_names(info)
     process = info["process"]
     if args.action == "status":
-        running = pids(process)
-        output.emit({"running": bool(running), "pids": running, "exe": str(app_core.executable(info))},
-                    f"{process}: " + (f"running ({', '.join(map(str, running))})" if running else "not running"), args.format)
+        matches = _all_pids(names)
+        running = [pid for _, pid in matches]
+        active_name = matches[0][0] if matches else process
+        output.emit({"running": bool(running), "pids": running, "process": active_name, "exe": str(app_core.executable(info))},
+                    f"{active_name}: " + (f"running ({', '.join(map(str, running))})" if running else "not running"), args.format)
         return output.OK if running else output.NOT_MET
     if args.action == "stop":
-        before = pids(process)
-        if before:
-            subprocess.run(["taskkill", "/F", "/T", "/IM", process], capture_output=True)
+        before_matches = _all_pids(names)
+        before = [pid for _, pid in before_matches]
+        if before_matches:
+            for name in dict.fromkeys(n for n, _ in before_matches):
+                subprocess.run(["taskkill", "/F", "/T", "/IM", name], capture_output=True)
             deadline = time.monotonic() + 10
-            while pids(process) and time.monotonic() < deadline:
+            while _all_pids(names) and time.monotonic() < deadline:
                 time.sleep(0.3)
-        left = pids(process)
+        left = [pid for _, pid in _all_pids(names)]
         output.emit({"stopped": before, "running": left}, f"stopped {len(before)}" + (f"; still running {left}" if left else ""),
                     args.format)
         return output.FAILED if left else output.OK
@@ -105,6 +119,7 @@ def run(args) -> int:
         return output.OK if result.get("ok") else output.NOT_MET
     # start
     exe = Path(args.exe).resolve() if getattr(args, "exe", None) else app_core.executable(info)
+    target_process = exe.name
     env = dict(os.environ)
     if args.settings_dir:
         folder = Path(args.settings_dir).resolve()
@@ -124,16 +139,17 @@ def run(args) -> int:
     elif args.fresh or args.set:
         output.note("--fresh and --set need --settings-dir: the user's own settings are never written")
         return output.USAGE
-    if pids(process) and not args.settings_dir:
-        output.emit({"started": False, "pids": pids(process)}, f"{process} already runs", args.format)
+    existing = [pid for _, pid in _all_pids(names)]
+    if existing and not args.settings_dir:
+        output.emit({"started": False, "pids": existing}, f"{target_process} already runs", args.format)
         return output.OK
     started = subprocess.Popen([str(exe)], cwd=str(exe.parent), env=env,
                                creationflags=getattr(subprocess, "DETACHED_PROCESS", 0))
     deadline = time.monotonic() + args.wait
-    while time.monotonic() < deadline and started.pid not in pids(process):
+    while time.monotonic() < deadline and started.pid not in pids(target_process):
         time.sleep(0.3)
-    running = started.pid in pids(process)
-    output.emit({"started": running, "pid": started.pid, "settings_dir": args.settings_dir},
-                f"{'started' if running else 'did not start'} {process} ({started.pid})"
+    running = started.pid in pids(target_process)
+    output.emit({"started": running, "pid": started.pid, "process": target_process, "settings_dir": args.settings_dir},
+                f"{'started' if running else 'did not start'} {target_process} ({started.pid})"
                 + (f" with settings in {args.settings_dir}" if args.settings_dir else ""), args.format)
     return output.OK if running else output.FAILED

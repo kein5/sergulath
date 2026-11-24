@@ -94,12 +94,13 @@ def run(args) -> int:
         return output.USAGE
 
     profile = profiles.load(args.profile)
-    process_name = profile["app"]["process"]
-    pid = args.pid if args.pid is not None else app_core.running_pid(process_name)
+    app_info = profile["app"]
+    process_label = " or ".join(app_core.process_names(app_info))
+    pid = args.pid if args.pid is not None else app_core.running_pid_for(app_info)
     if pid is None:
         record = {"source": "summary", "ok": False, "alive": False, "memory_ok": False, "overlay_ok": False,
-                  "reason": f"{process_name} is not running"}
-        output.emit(record, f"soak FAIL: {process_name} is not running", args.format)
+                  "reason": f"{process_label} is not running"}
+        output.emit(record, f"soak FAIL: {process_label} is not running", args.format)
         return output.NOT_MET
 
     csv_record = soak_core.CsvRecord(Path(args.csv)) if args.csv else None

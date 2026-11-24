@@ -192,6 +192,43 @@ class AppStartTest(unittest.TestCase):
             self.assertEqual(code, output.USAGE)
             self.assertIn("never written", err)
 
+    def test_app_commands_find_and_stop_legacy_and_new_names(self):
+        from unittest import mock
+        from sergulath.commands import app
+        from sergulath.core import app as app_core
+
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            legacy_bin = root / "vrct-vox.exe"
+            legacy_bin.write_bytes(b"exe")
+            info = {"process": "astarot.exe", "legacy_process": ["vrct-vox.exe"],
+                    "exe": str(root / "astarot.exe"), "legacy_exe": [str(legacy_bin)]}
+            self.assertEqual(app_core.executable(info), legacy_bin)
+            new_bin = root / "astarot.exe"
+            new_bin.write_bytes(b"exe")
+            self.assertEqual(app_core.executable(info), new_bin)
+
+        running = {"astarot.exe": [], "vrct-vox.exe": [777]}
+        killed = []
+
+        def fake_pids(name):
+            return list(running.get(name, []))
+
+        def fake_run(argv, **kw):
+            if argv[0] == "taskkill":
+                killed.append(argv[-1])
+                running[argv[-1]] = []
+
+        with mock.patch.object(app, "pids", fake_pids):
+            code, out, _ = _run(["app", "status", "--format", "json"])
+            self.assertEqual(code, output.OK)
+            self.assertEqual(json.loads(out)["pids"], [777])
+            self.assertEqual(json.loads(out)["process"], "vrct-vox.exe")
+        with mock.patch.object(app, "pids", fake_pids), mock.patch("subprocess.run", fake_run):
+            code, _, _ = _run(["app", "stop", "--format", "json"])
+            self.assertEqual(code, output.OK)
+            self.assertEqual(killed, ["vrct-vox.exe"])
+
 
 class BundledAstarotSuiteTest(unittest.TestCase):
     def test_astarot_e2e_suite_loads_all_26_cases(self):

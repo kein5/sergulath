@@ -15,6 +15,15 @@ from pathlib import Path
 from . import window_capture
 
 
+def process_names(profile_app: dict) -> list[str]:
+    """Current process name first, followed by any older names (0.6.x: vrct-vox.exe)."""
+    names = [profile_app["process"]]
+    for legacy in profile_app.get("legacy_process", []):
+        if legacy not in names:
+            names.append(legacy)
+    return names
+
+
 def running_pid(process: str) -> int | None:
     for line in subprocess.run(["tasklist", "/fo", "csv", "/nh", "/fi", f"IMAGENAME eq {process}"],
                                capture_output=True, text=True, check=True).stdout.splitlines():
@@ -24,8 +33,25 @@ def running_pid(process: str) -> int | None:
     return None
 
 
+def running_pid_for(profile_app: dict) -> int | None:
+    """Return the first running PID for the app under its current or legacy process names."""
+    for name in process_names(profile_app):
+        pid = running_pid(name)
+        if pid is not None:
+            return pid
+    return None
+
+
 def executable(profile_app: dict) -> Path:
-    return Path(os.path.expandvars(profile_app["exe"]))
+    """Primary executable path, falling back to an existing legacy path when 0.6.x is installed."""
+    primary = Path(os.path.expandvars(profile_app["exe"]))
+    if primary.is_file():
+        return primary
+    for raw in profile_app.get("legacy_exe", []):
+        candidate = Path(os.path.expandvars(raw))
+        if candidate.is_file():
+            return candidate
+    return primary
 
 
 def main_window_shown(pid: int, title: str) -> bool:
@@ -34,9 +60,10 @@ def main_window_shown(pid: int, title: str) -> bool:
 
 def show_main_window(profile_app: dict, wait_s: float = 10.0) -> int:
     """Bring the running app's main window up; return its pid. Raises if the app does not run."""
-    pid = running_pid(profile_app["process"])
+    pid = running_pid_for(profile_app)
     if pid is None:
-        raise RuntimeError(f"{profile_app['process']} is not running; start the app first")
+        names = " or ".join(process_names(profile_app))
+        raise RuntimeError(f"{names} is not running; start the app first")
     title = profile_app["main_window_title"]
     if main_window_shown(pid, title):
         return pid

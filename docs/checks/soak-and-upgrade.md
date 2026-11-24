@@ -51,12 +51,12 @@ sergulath upgrade channel --channel beta --from-version 0.6.0
 sergulath upgrade check --from-version 0.6.0 --channel beta \
     --work-dir records/suite/E26 --cache-dir records/suite/cache --check-overlay ASTAROT0
 
-# Before a beta is published, substitute a local package (VRCT-VOX.zip, unpacked folder or VRCT-VOX_setup.exe):
-sergulath upgrade check --from-version 0.6.0 --to path/to/VRCT-VOX.zip \
+# Before a beta is published, substitute a local package (ASTAROT.zip, unpacked folder or ASTAROT_setup.exe):
+sergulath upgrade check --from-version 0.6.0 --to path/to/ASTAROT.zip \
     --work-dir records/suite/E26 --cache-dir records/suite/cache --check-overlay ASTAROT0
 
 # Or through the E2E suite via environment variables:
-SERGULATH_UPGRADE_TO=path/to/VRCT-VOX.zip \
+SERGULATH_UPGRADE_TO=path/to/ASTAROT.zip \
     sergulath suite run --cases suites/astarot-e2e.toml --only E26 --record records/suite/e26
 ```
 
@@ -69,6 +69,9 @@ What `upgrade check` does:
    runner maps that to `UNSUPPORTED` (not `FAIL`).
 2. **Stage base version (0.6.0)**: unpacks `--from` (`SERGULATH_UPGRADE_FROM`), or downloads and
    SHA-256-verifies `v0.6.0`'s `VRCT-VOX.zip` into `--cache-dir`, into `<work-dir>/install`.
+   ASTAROT 0.7.0 renamed the executable (`vrct-vox.exe` to `astarot.exe`) and the assets
+   (`ASTAROT.zip`, `ASTAROT_setup.exe`); the profile lists the new names first and the old ones as
+   `legacy_*`, so an update across the rename finds the right file on both sides.
 3. **Seed state**: writes `config.json` from the profile's `[app.check_settings]` plus non-default
    sentinel values (`SELECTED_RELEASE_CHANNEL = "beta"`, `RELEASE_CHANNEL_CHOSEN = true`,
    `TRANSPARENCY = 87`, `MIC_THRESHOLD = 456`) and creates synthetic sentinel model files under
@@ -78,9 +81,9 @@ What `upgrade check` does:
    - For a `.zip` or unpacked folder: stages into `.upd/new`, swaps only app-owned entries with
      rollback on error, and leaves user data (`config.json`, `downloaded_models/`, `logs/`, etc.)
      untouched.
-   - For an NSIS `VRCT-VOX_setup.exe` (or beta channel installer): snapshots the installer's HKCU
-     registry keys (`Software\kein5\VRCT-VOX` and
-     `Software\Microsoft\Windows\CurrentVersion\Uninstall\VRCT-VOX`), runs
+   - For an NSIS `ASTAROT_setup.exe` (or beta channel installer): snapshots the installer's HKCU
+     registry keys (`Software\kein5\ASTAROT`, `Software\kein5\VRCT-VOX` and the matching
+     `Software\Microsoft\Windows\CurrentVersion\Uninstall\` keys), runs
      `setup.exe /S /UPDATE /NS /D=<sandbox>` (silent, no shortcuts, no extra offers), aborts if
      UAC elevation is required, and always restores the HKCU registry keys in `finally` (ground
      rule 2).
@@ -92,9 +95,10 @@ What `upgrade check` does:
 ### Note on in-app updater UI vs sandboxed update
 
 ASTAROT's in-app updater (`tauri-plugin-updater`) compiles its manifest URLs and minisign public
-key into `vrct-vox.exe` and launches `VRCT-VOX_setup.exe /P /UPDATE /R` without `/D=`, which reads
-`$INSTDIR` from `HKCU\Software\kein5\VRCT-VOX`. Because ASTAROT itself is kept read-only and local
-unpublished packages are unsigned, `upgrade check` exercises the beta channel manifest, signed/
-SHA-256-verified package download, NSIS `/S /UPDATE /NS /D=<sandbox>` (or staged ZIP replacement
-for local builds), data preservation and post-update startup in isolation instead of triggering
-the in-app updater against the user's real installation.
+key into `astarot.exe` (`vrct-vox.exe` up to 0.6.x) and launches `ASTAROT_setup.exe /P /UPDATE /R`
+(`VRCT-VOX_setup.exe` up to 0.6.x) without `/D=`, which reads `$INSTDIR` from
+`HKCU\Software\kein5\ASTAROT` (or `HKCU\Software\kein5\VRCT-VOX` up to 0.6.x). Because ASTAROT
+itself is kept read-only and local unpublished packages are unsigned, `upgrade check` exercises the
+beta channel manifest, signed/SHA-256-verified package download, NSIS `/S /UPDATE /NS /D=<sandbox>`
+(or staged ZIP replacement for local builds), data preservation and post-update startup in isolation
+instead of triggering the in-app updater against the user's real installation.

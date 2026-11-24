@@ -180,8 +180,12 @@ class AppStartTest(unittest.TestCase):
                 started["env"] = env
                 return Proc()
 
+            exe = Path(root) / "bin" / "astarot.exe"  # the profile's install path need not exist on CI
+            exe.parent.mkdir()
+            exe.write_bytes(b"exe")
             with mock.patch("subprocess.Popen", popen), mock.patch.object(app, "pids", lambda p: [4242]):
-                code, _, _ = _run(["app", "start", "--settings-dir", root, "--fresh", "--set", "OVERLAY_VR_PANEL=true"])
+                code, _, _ = _run(["app", "start", "--exe", str(exe), "--settings-dir", root, "--fresh",
+                                   "--set", "OVERLAY_VR_PANEL=true"])
             self.assertEqual(code, output.OK)
             config = json.loads((Path(root) / "config.json").read_text(encoding="utf-8"))
             self.assertIs(config["OVERLAY_VR_PANEL"], True)

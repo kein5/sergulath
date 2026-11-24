@@ -1,8 +1,9 @@
-# ASTAROT end-to-end cases (24), from the list made on 2026-11-23 (the source of truth; the
-# numbers E01..E24 are its numbers). Run:
+# ASTAROT end-to-end cases (26): E01..E24 from the 2026-11-23 list, plus E25 (30-minute soak)
+# and E26 (0.6.0 -> beta / local package upgrade). Run:
 #
 #     sergulath suite run --cases suites/astarot-e2e.toml --record records/suite/run
-#     sergulath suite run --cases suites/astarot-e2e.toml --slow     # also E18 and E21 (about 30 min)
+#     sergulath suite run --cases suites/astarot-e2e.toml --slow     # also E18, E21, E25 (about 60 min)
+#     SERGULATH_UPGRADE_TO=path/to/VRCT-VOX.zip sergulath suite run --cases suites/astarot-e2e.toml --only E26
 #
 # What it needs: SteamVR with the headset connected (a Steam Frame lying on a desk is fine),
 # the installed ASTAROT 0.6 or later, the virtual controller driver built (`sergulath driver
@@ -15,6 +16,10 @@
 # - E01 stops SteamVR and starts it again through Steam.
 # - The "virtual" phase switches SteamVR to the virtual headset with the virtual controllers
 #   (`hmd on --with-driver`: settings snapshot, restored by `hmd off`).
+# - The "soak" phase starts the caption sample for E25 and always stops it on exit.
+# - The "upgrade" phase stops the suite's ASTAROT while E26 runs its isolated copy in
+#   records/suite/E26 (ground rule 4; HKCU installer keys are snapshotted and restored if an
+#   installer runs), then restarts the suite's ASTAROT.
 #
 # Order: the cases that use the real headset first, then the virtual-headset ones, so each phase
 # is set up once. Names pressed in the app are its Japanese UI (UI_LANGUAGE ja in the profile's
@@ -47,6 +52,16 @@ teardown = [["sergulath", "hmd", "off"]]
 [phase.vrview]
 setup = [["sergulath", "view", "open"]]
 teardown = [["sergulath", "view", "close"]]
+
+# Caption sample kept active for the 30-minute soak (E25), always stopped on exit.
+[phase.soak]
+setup = [["sergulath", "caption", "sample", "start"]]
+teardown = [["sergulath", "caption", "sample", "stop"]]
+
+# Stops the suite's ASTAROT while E26 boots its isolated upgrade sandbox so overlay keys do not collide.
+[phase.upgrade]
+setup = [["sergulath", "app", "stop"]]
+teardown = [["sergulath", "app", "start", "--settings-dir", "records/suite/app"]]
 
 # ---- startup and prerequisites ----------------------------------------------------------------
 
@@ -316,3 +331,26 @@ id = "E24"
 group = "cross-version"
 title = "overlay finds a 0.5.x ASTAROT's old keys (VRCT0 to VRCT4)"
 unsupported = "needs a 0.5.x ASTAROT installed in place of 0.6 (optional in the list); `overlay --legacy` is there for it"
+
+# ---- long-running stability and upgrade path -------------------------------------------------------
+
+[[case]]
+id = "E25"
+group = "stability"
+phase = "soak"
+title = "30-minute soak: ASTAROT stays alive, memory stays bounded, and the caption overlay stays shown"
+slow = true
+steps = [
+    { run = ["sergulath", "soak", "--duration", "1800", "--interval", "60", "--warmup", "120", "--max-growth-mb", "100", "--max-slope-mb-per-hour", "120", "--overlay", "ASTAROT0", "--min-alpha", "0.01", "--csv", "records/suite/E25.csv", "--format", "json"], json = { source = "summary", ok = true, alive = true, memory_ok = true, overlay_ok = true }, wait = 3, timeout = 2400 },
+]
+note = "Runs with the app's own caption sample active (phase soak) for 30 minutes (31 samples, 60 s apart). Checks that the initial PID never exits, post-warmup process-tree private memory stays within 100 MiB net growth and 120 MiB/h trend, and ASTAROT0 stays found, visible and non-transparent (alpha >= 0.01). Overlay pixels are not read here because a real headset enters standby after 5 minutes and GPU-texture builds return OverlayError_InvalidTexture."
+
+[[case]]
+id = "E26"
+group = "upgrade"
+phase = "upgrade"
+title = "Upgrade from 0.6.0 to beta (or local package) keeps settings and models and starts cleanly"
+steps = [
+    { run = ["sergulath", "upgrade", "check", "--from-version", "0.6.0", "--channel", "beta", "--work-dir", "records/suite/E26", "--cache-dir", "records/suite/cache", "--check-overlay", "ASTAROT0", "--format", "json"], json = { source = "upgrade", ok = true, settings_preserved = true, models_preserved = true, launched_ok = true }, unsupported_when = { source = "upgrade", status = "unsupported" }, timeout = 900 },
+]
+note = "Stages an isolated 0.6.0 copy in records/suite/E26/install (never touches the user's installed ASTAROT or settings; ground rule 4), seeds non-default settings and synthetic model files under downloaded_models/, then updates via the beta channel (beta/latest.json). While no beta newer than 0.6.0 is published yet, set SERGULATH_UPGRADE_TO (and optionally SERGULATH_UPGRADE_FROM) to a local VRCT-VOX.zip, unpacked folder or VRCT-VOX_setup.exe to run this case; otherwise it reports unsupported."

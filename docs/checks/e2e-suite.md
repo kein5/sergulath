@@ -1,12 +1,13 @@
-# The ASTAROT end-to-end suite (24 cases)
+# The ASTAROT end-to-end suite (26 cases)
 
-`suites/astarot-e2e.toml` holds the 24 cases of the list made on 2026-11-23 (its numbers are the
-case ids E01..E24), and `sergulath suite run` runs them in order and sums them up.
+`suites/astarot-e2e.toml` holds the 24 cases of the list made on 2026-11-23 (E01..E24), plus E25
+(30-minute soak) and E26 (0.6.0 to beta / local package upgrade), and `sergulath suite run` runs
+them in order and sums them up.
 
 ```sh
 sergulath suite list --cases suites/astarot-e2e.toml                   # what runs, what cannot, why
 sergulath suite run  --cases suites/astarot-e2e.toml --record records/suite/run
-sergulath suite run  --cases suites/astarot-e2e.toml --slow            # also E18 and E21 (about 30 min)
+sergulath suite run  --cases suites/astarot-e2e.toml --slow            # also E18, E21 and E25 (about 60 min)
 sergulath suite run  --cases suites/astarot-e2e.toml --only E16        # one case (its phase's setup runs too)
 ```
 
@@ -30,6 +31,11 @@ Run it from the repository's root (the case file's paths are relative to it).
   virtual controllers (`hmd on --with-driver`: a settings snapshot) and back (`hmd off`).
 - The `vrview` phase (E22) opens the VR View (`view open`: a settings snapshot and a SteamVR
   restart) and closes it (`view close`).
+- The `soak` phase (E25) starts the caption sample before the 30-minute soak and stops it on exit.
+- The `upgrade` phase (E26) stops the suite's ASTAROT while E26 runs an isolated copy in
+  `records/suite/E26` (never touching the user's installed ASTAROT or settings; HKCU installer
+  registry keys are snapshotted and restored around installer runs), then starts the suite's app
+  again. See [soak-and-upgrade.md](soak-and-upgrade.md).
 
 Teardowns run also after a failure or an interruption. If a run dies before them anyway:
 `sergulath hmd off`, `sergulath view close`, `sergulath app stop`, `sergulath app start`.
@@ -61,6 +67,8 @@ error make the exit code 1.
 | E22 (VR View captions, blank when lost) | runs the blank half | `view open` opens the VR View (phase `vrview`, closed again by `view close`) and the Frame on the desk gives a blank view, exit 1. Captions in the VR View need the headset worn: under the virtual headset the VR View stays black (see [view-and-chaperone.md](view-and-chaperone.md)) |
 | E24 (0.5.x keys) | unsupported | needs a 0.5.x install (optional in the list) |
 | E09 (pixels read) | passes on 0.6.0-beta.2 | develop builds hand the caption overlays to SteamVR as GPU textures, whose pixels cannot be read (`OverlayError_InvalidTexture`); stage 4 of the gap plan makes the headset image the route |
+| E25 (30-minute soak) | slow (`--slow`) | runs `sergulath soak` for 30 min with the caption sample active; checks PID liveness, post-warmup process-tree private memory bounds, and `ASTAROT0` visibility/alpha (without reading pixels, so standby and GPU-texture builds work). See [soak-and-upgrade.md](soak-and-upgrade.md) |
+| E26 (0.6.0 -> beta upgrade) | beta channel, or local fallback; `unsupported` while unpublished | updates an isolated 0.6.0 sandbox in `records/suite/E26` via `beta/latest.json`, or `SERGULATH_UPGRADE_TO` (local ZIP, folder or `setup.exe`) while no beta > 0.6.0 is published; reports `unsupported` otherwise. See [soak-and-upgrade.md](soak-and-upgrade.md) |
 
 ## First run, 2026-11-23
 

@@ -165,7 +165,7 @@ On the headset (Steam Frame, over SSH with a registered key; `sergulath frame ov
 |---|---|
 | Overlay state (shown, alpha) | yes, for every system overlay: tells whether that screen is up |
 | Overlay pixels (`GetOverlayImageData`) | only raw-pixel overlays: `system.systemui` (a UI atlas with the button). The camera view, the headset view and Steam's UI are GPU textures and answer error 24 |
-| The composited headset image | not found yet. The compositor's debug command `screenshot_all_request` was accepted but wrote nothing; a Vulkan capture layer would need the compositor restarted with changed settings, which these read-only tools do not do |
+| The composited headset image | not yet. The compositor's debug command `screenshot_all_request` was accepted but wrote nothing; a Vulkan capture layer would need the compositor restarted with changed settings, which these read-only tools do not do. The OpenVR mirror is refused to clients on the headset. Reading the panel's framebuffer works up to one step that needs root, which waits for a decision on how the password is handed over ([docs/checks/frame-shot.md](docs/checks/frame-shot.md)) |
 
 The VR View shows the scene only while the headset tracks. When a Frame on a desk loses tracking (tracking result `calibrating_out_of_range`), the view below its toolbar turns one flat colour (black or grey); `view save` then reports the image as blank and exits with 1. Under the virtual headset the VR View stays black: the null driver gives it no mirror, so use `view save --headset` there.
 

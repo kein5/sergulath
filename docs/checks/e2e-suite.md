@@ -27,8 +27,9 @@ Run it from the repository's root (the case file's paths are relative to it).
   (`app start --settings-dir records/suite/app --fresh`), so pressing its settings never touches
   the user's (ground rule 4). The installed app is started again at the end.
 - E01 stops SteamVR and starts it again through Steam.
-- The `virtual` phase (E08, E12, E14, E16, E17) switches SteamVR to the virtual headset with the
-  virtual controllers (`hmd on --with-driver`: a settings snapshot) and back (`hmd off`).
+- The `virtual` phase (E08, E09, E12, E14, E16, E17) switches SteamVR to the virtual headset with
+  the virtual controllers (`hmd on --with-driver`: a settings snapshot) and back (`hmd off`). Its
+  window is 1920 x 1080, at the top left of the desktop, while the phase runs.
 - The `vrview` phase (E22) opens the VR View (`view open`: a settings snapshot and a SteamVR
   restart) and closes it (`view close`).
 - The `soak` phase (E25) starts the caption sample before the 30-minute soak and stops it on exit.
@@ -39,6 +40,10 @@ Run it from the repository's root (the case file's paths are relative to it).
 
 Teardowns run also after a failure or an interruption. If a run dies before them anyway:
 `sergulath hmd off`, `sergulath view close`, `sergulath app stop`, `sergulath app start`.
+
+E09 alone on the virtual headset, 2026-11-23: passed; the caption cut out of the headset's image
+read "サンプルテキスト ...", and the cleanup left the Frame as the headset, the driver
+unregistered, no snapshot pending and the installed app running.
 
 E22 alone, 2026-11-23 (same PC, Frame on the desk): passed; the VR View was closed again,
 `showMirrorView` back to false, no snapshot pending, and the installed app running.
@@ -66,7 +71,7 @@ error make the exit code 1.
 | E19 (tracking back after lifting) | manual | someone has to lift the headset; the virtual headset never loses tracking |
 | E22 (VR View captions, blank when lost) | runs the blank half | `view open` opens the VR View (phase `vrview`, closed again by `view close`) and the Frame on the desk gives a blank view, exit 1. Captions in the VR View need the headset worn: under the virtual headset the VR View stays black (see [view-and-chaperone.md](view-and-chaperone.md)) |
 | E24 (0.5.x keys) | unsupported | needs a 0.5.x install (optional in the list) |
-| E09 (pixels read) | passes on 0.6.0-beta.2 | develop builds hand the caption overlays to SteamVR as GPU textures, whose pixels cannot be read (`OverlayError_InvalidTexture`); stage 4 of the gap plan makes the headset image the route |
+| E09 (pixels read) | runs on the virtual headset, from its image | develop builds hand the caption overlays to SteamVR as GPU textures, whose pixels another process cannot read (`OverlayError_InvalidTexture`). The case cuts the caption out of the virtual headset's image (`view save --headset --overlay ASTAROT0`), which works for every build; `overlay --save` stays as a record where it works. See [headset-view.md](headset-view.md) |
 | E25 (30-minute soak) | slow (`--slow`) | runs `sergulath soak` for 30 min with the caption sample active; checks PID liveness, post-warmup process-tree private memory bounds, and `ASTAROT0` visibility/alpha (without reading pixels, so standby and GPU-texture builds work). See [soak-and-upgrade.md](soak-and-upgrade.md) |
 | E26 (0.6.0 -> beta upgrade) | beta channel, or local fallback; `unsupported` while unpublished | updates an isolated 0.6.0 sandbox in `records/suite/E26` via `beta/latest.json`, or `SERGULATH_UPGRADE_TO` (local ZIP, folder or `setup.exe`) while no beta > 0.6.0 is published; reports `unsupported` otherwise. See [soak-and-upgrade.md](soak-and-upgrade.md) |
 

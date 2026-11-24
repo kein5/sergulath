@@ -110,7 +110,7 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 | `sergulath steamvr status` | SteamVR が動いているか、`vrmonitor` が動いているか、版、ヘッドセットとコントローラーの状態を示す | 0（済み） |
 | `sergulath steamvr start` / `wait` / `stop` | SteamVR を Steam から起動し、ヘッドセットの接続（または追跡）を待ち、SteamVR を終了する | 0（済み） |
 | `sergulath settings show` / `set` / `restore` / `pending` | SteamVR の設定（`section.name=値`）。変える前に対象のキーの写しを取り、キーごとに元に戻す | 0（済み） |
-| `sergulath view save` / `screenshot` | ヘッドセットに映っているものを保存する。VR表示のウィンドウ（シーンとオーバーレイ）、仮想のヘッドセットのウィンドウ（`--headset`）、SteamVR のスクリーンショット（シーンだけ）のどれか。[PC から見えるもの](#pc-から見えるもの)を参照 | 0（試作） |
+| `sergulath view save` / `screenshot` | ヘッドセットに映っているものを保存する。VR表示のウィンドウ（シーンとオーバーレイ）、仮想のヘッドセットのウィンドウ（`--headset`）、SteamVR のスクリーンショット（シーンだけ）のどれか。`--headset --overlay KEY` は、SteamVR が画素を渡さないオーバーレイを、仮想のヘッドセットの映像から切り出す。[PC から見えるもの](#pc-から見えるもの)と [docs/checks/headset-view.md](checks/headset-view.md) を参照 | 0（済み） |
 | `sergulath caption sample start` / `stop`、`sergulath caption check` | アプリのサンプルの字幕をセッションの側から送り、字幕のオーバーレイが描かれているかを確かめる | 0（済み） |
 | `sergulath frame overlays` | 単体で動くヘッドセット自身のシステムのオーバーレイを SSH で読む（状態と、読めるものは画像） | 1（試作） |
 | `sergulath view open` / `close` | 人の手なしで VR表示を開き（`steamvr.showMirrorView` の写しを取って SteamVR を起動し直す）、元に戻す。[docs/checks/view-and-chaperone.md](view-and-chaperone.md) を参照 | 1（済み） |

@@ -15,7 +15,8 @@
 #   and the installed one is started again at the end.
 # - E01 stops SteamVR and starts it again through Steam.
 # - The "virtual" phase switches SteamVR to the virtual headset with the virtual controllers
-#   (`hmd on --with-driver`: settings snapshot, restored by `hmd off`).
+#   (`hmd on --with-driver`: settings snapshot, restored by `hmd off`). Its window is 1920 x 1080
+#   so a caption cut out of it can be read (in 480 x 270 each eye had 180 x 150 pixels).
 # - The "soak" phase starts the caption sample for E25 and always stops it on exit.
 # - The "upgrade" phase stops the suite's ASTAROT while E26 runs its isolated copy in
 #   records/suite/E26 (ground rule 4; HKCU installer keys are snapshotted and restored if an
@@ -40,7 +41,7 @@ teardown = [
 setup = [
     ["sergulath", "app", "stop"],
     ["sergulath", "app", "start", "--settings-dir", "records/suite/app-vr", "--fresh", "--set", "OVERLAY_VR_PANEL=true"],
-    ["sergulath", "hmd", "on", "--with-driver"],
+    ["sergulath", "hmd", "on", "--with-driver", "--window", "0", "0", "1920", "1080"],
     ["sergulath", "steamvr", "wait", "--until", "tracking", "--timeout", "90"],
     ["sergulath", "controller", "connect", "--hand", "left"],
     ["sergulath", "controller", "connect", "--hand", "right"],
@@ -145,17 +146,6 @@ steps = [
 ]
 
 [[case]]
-id = "E09"
-group = "captions"
-title = "overlay --save reads the pixels, and the sample's text is drawn"
-steps = [
-    { run = ["sergulath", "caption", "sample", "start"] },
-    { run = ["sergulath", "overlay", "--key", "ASTAROT0", "--save", "records/suite/E09", "--format", "json"], json = { found = true, drawn_px = { gt = 0 } }, wait = 3 },
-    { run = ["sergulath", "caption", "sample", "stop"] },
-]
-note = "0.6 develop builds hand the caption overlays to SteamVR as GPU textures; their pixels then cannot be read (OverlayError_InvalidTexture) and this case fails on them (see docs/checks/speaker-names.md)."
-
-[[case]]
 id = "E10"
 group = "captions"
 title = "Turning the caption overlays off removes the overlays"
@@ -257,6 +247,19 @@ steps = [
     { run = ["sergulath", "overlay", "--placement", "--key", "ASTAROT1", "--format", "json"], json = { "placement.device" = "controller/left", "placement.device_pose_valid" = true } },
 ]
 note = "Runs on the virtual headset with the virtual left hand: a Steam Frame's controllers sleep on a desk, and the hand-held overlay then waits at the origin with no hand to follow."
+
+[[case]]
+id = "E09"
+group = "captions"
+phase = "virtual"
+title = "The sample caption is drawn: cut out of the headset's image, and its pixels where SteamVR hands them out"
+steps = [
+    { run = ["sergulath", "caption", "sample", "start"] },
+    { run = ["sergulath", "view", "save", "--headset", "--overlay", "ASTAROT0", "--out", "records/suite/E09/ASTAROT0-headset.png", "--format", "json"], json = { visible = true, blank = false, inside = { gt = 0.9 } }, wait = 3 },
+    { run = ["sergulath", "overlay", "--key", "ASTAROT0", "--save", "records/suite/E09", "--format", "json"], exit = [0, 1] },
+    { run = ["sergulath", "caption", "sample", "stop"] },
+]
+note = "The headset's image is the route that works for every build (stage 4 of the gap plan): 0.6 develop builds hand the caption overlays to SteamVR as GPU textures, whose pixels another process cannot read (OverlayError_InvalidTexture, also through GetOverlayTexture), and a real headset in standby hands out no overlay's pixels. `overlay --save` stays as a record where it works. Runs on the virtual headset, which looks straight ahead where the one-line caption is."
 
 [[case]]
 id = "E12"

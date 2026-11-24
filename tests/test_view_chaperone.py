@@ -10,7 +10,7 @@ from unittest import mock
 
 from sergulath import cli, output
 from sergulath.commands import view
-from sergulath.core import chaperone, driver, settings, steamvr, window_capture
+from sergulath.core import chaperone, driver, host, settings, steamvr, window_capture
 
 
 def _run(argv):
@@ -42,6 +42,7 @@ class VrViewBlankTest(unittest.TestCase):
         self.assertFalse(window_capture.vr_view_is_blank(bytes(rgba), width, height))
 
 
+@mock.patch.object(host, "WINDOWS", True)  # the VR View is found through Win32; mocked here
 class ViewOpenTest(unittest.TestCase):
     def test_an_open_window_changes_nothing(self):
         with mock.patch.object(view, "_find_vr_view", lambda *a: _window()), \

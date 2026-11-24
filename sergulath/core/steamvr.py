@@ -2,20 +2,19 @@
 
 from __future__ import annotations
 
-import subprocess
 from contextlib import contextmanager
 
+from . import host
+
 # Connecting an OpenVR client while the compositor is down makes SteamVR start it again,
-# so the tools connect only when both of these already run.
+# so the tools connect only when both of these already run. (Linux lists them under the same
+# names: see `host.normalize`.)
 REQUIRED_PROCESSES = ("vrserver.exe", "vrcompositor.exe")
 
 
 def running_processes() -> set[str]:
-    """Names of the running processes, lower case (Windows `tasklist`)."""
-    out = subprocess.run(
-        ["tasklist", "/fo", "csv", "/nh"], capture_output=True, text=True, check=True
-    ).stdout
-    return {line.split('","')[0].strip('"').lower() for line in out.splitlines() if line}
+    """Names of the running processes, lower case, in the Windows spelling (`host.normalize`)."""
+    return host.running_names()
 
 
 def missing_processes(running: set[str] | None = None) -> list[str]:

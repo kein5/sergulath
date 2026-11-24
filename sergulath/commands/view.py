@@ -24,7 +24,7 @@ import time
 from pathlib import Path
 
 from .. import output
-from ..core import driver, headset_view, placement, png, screenshots, settings, steamvr, window_capture
+from ..core import driver, headset_view, host, placement, png, screenshots, settings, steamvr, window_capture
 
 NAME = "view"
 HELP = "open the VR View, and save what the headset shows: the VR View (scene and overlays) or a screenshot"
@@ -202,4 +202,6 @@ def _screenshot(args) -> int:
 
 
 def run(args) -> int:
+    if args.action != "screenshot":  # before anything changes: open restarts SteamVR, then looks for the window
+        host.require_windows(f"view {args.action}", window_capture.WINDOWS_ONLY)
     return {"open": _open, "close": _close, "save": _save, "screenshot": _screenshot}[args.action](args)

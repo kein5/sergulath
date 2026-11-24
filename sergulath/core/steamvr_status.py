@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import re
-import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import window_capture
+from . import host
 
 PROCESSES = ("vrserver.exe", "vrcompositor.exe", "vrmonitor.exe", "vrdashboard.exe", "vrstartup.exe")
 _VERSION = re.compile(r"vrserver (\d+(?:\.\d+)+) startup")
@@ -27,22 +26,20 @@ class Status:
 
 
 def process_pids(names=PROCESSES) -> dict[str, int | None]:
-    out = subprocess.run(["tasklist", "/fo", "csv", "/nh"], capture_output=True, text=True, check=True).stdout
     found: dict[str, int | None] = {n: None for n in names}
-    for line in out.splitlines():
-        parts = [p.strip('"') for p in line.split('","')]
-        if len(parts) > 1 and parts[0].lower() in found and found[parts[0].lower()] is None:
-            found[parts[0].lower()] = int(parts[1])
+    for name, pid in host.process_table():
+        if name in found and found[name] is None:
+            found[name] = pid
     return found
 
 
 def process_path(pid: int) -> Path | None:
-    name = window_capture.full_process_path(pid) if window_capture.kernel32 else None
-    return Path(name) if name else None
+    return host.process_path(pid)
 
 
 def logs_folder(vrserver_exe: Path) -> Path | None:
-    """Steam's logs folder, found by walking up from vrserver.exe (…/steamapps/common/SteamVR/bin/win64)."""
+    """Steam's logs folder, found by walking up from vrserver (…/steamapps/common/SteamVR/bin/win64
+    or bin/linux64)."""
     for parent in vrserver_exe.parents:
         candidate = parent / "logs" / "vrserver.txt"
         if candidate.exists():
@@ -50,15 +47,12 @@ def logs_folder(vrserver_exe: Path) -> Path | None:
     return None
 
 
-def steam_logs_from_registry() -> Path | None:
-    """Steam's logs folder from HKCU\\Software\\Valve\\Steam\\SteamPath. Needed when SteamVR's
-    library sits elsewhere than Steam itself (another library folder, or a linked folder)."""
-    try:
-        import winreg
-
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam") as key:
-            steam = Path(winreg.QueryValueEx(key, "SteamPath")[0])
-    except (ImportError, OSError):
+def steam_logs_folder() -> Path | None:
+    """Steam's logs folder under Steam's own folder (Windows: HKCU\\Software\\Valve\\Steam\\SteamPath;
+    Linux: ~/.steam/steam and the other usual places). Needed when SteamVR's library sits
+    elsewhere than Steam itself (another library folder, or a linked folder)."""
+    steam = host.steam_root()
+    if steam is None:
         return None
     folder = steam / "logs"
     return folder if (folder / "vrserver.txt").exists() else None
@@ -76,7 +70,7 @@ def read_status() -> Status:
     status.vrmonitor = bool(status.processes["vrmonitor.exe"])
     pid = status.processes["vrserver.exe"]
     exe = process_path(pid) if pid else None
-    folder = (logs_folder(exe) if exe else None) or steam_logs_from_registry()
+    folder = (logs_folder(exe) if exe else None) or steam_logs_folder()
     if folder:
         log = folder / "vrserver.txt"
         status.log = str(log)

@@ -185,6 +185,20 @@ VR表示にシーンが映るのは、ヘッドセットが位置を出してい
 - `sergulath audio` には PyAudioWPatch（`pip install .[audio]`）。読み上げの確認には仮想のオーディオケーブル（VB-CABLE で確かめた）
 - 仮想コントローラーのドライバーには Rust のツールチェーン（C++ のコンパイラーは要らない。ドライバーが自分で vtable を作る）。CI は Windows と Linux でビルドと試験をする。SteamVR で試したのは Windows だけ
 
+### Linux
+
+Linux でも `pip install .` でインストールでき、コマンドラインが動きます。Linux で動くのは、OpenVR、SteamVR のファイル、Steam Frame への SSH だけを使うコマンドです。`steamvr`、`settings`、`watch`、`overlay`（一覧）、`view screenshot`、`chaperone`、`caption check`（`--view` なし）、`logs`（SteamVR のログ）、`frame`、`hmd`（`--with-driver` なし）、`controller dashboard status`、`soak`、`upgrade channel`、`asr`、`tts`、`suite`、`profiles` がこれに当たります。Steam は `~/.steam/steam`、`~/.local/share/Steam`、Flatpak のフォルダーの順に探し、`PATH` にある `steam` で起動します。
+
+Windows が必要な機能は、使えないことを表示して終了コード 1 で終わります。JSON では `"status": "unsupported"` と `unsupported_on` を出力し、`suite` は失敗ではなく未対応として数えます。該当するのは次の機能です。
+
+- UI Automation を使う `app press`、`app type`、`caption sample`
+- WASAPI ループバックを使う `audio`
+- ウィンドウを撮影する `view open`、`view close`、`view save`、`caption check --view`
+- Windows のインストーラーとそのレジストリキーを扱う `upgrade check`
+- 仮想コントローラーのドライバーと、それを使う `driver build`、`driver register`、`driver run`、`controller`、`overlay press`、`hmd --with-driver`
+
+`app status`、`app stop`、`app start --exe` は Linux でも動きます。ただし、プロファイルに書いてあるインストール先は Windows のパスです。
+
 ## 変更の入れ方
 
 ブランチの運用は ASTAROT と同じです。作業用のブランチで変更し、`develop`（既定のブランチ）へのプルリクエストにして、マージコミットでマージします。`main` はリリースのときだけ `develop` から更新します。コミットメッセージは Conventional Commits に従います。

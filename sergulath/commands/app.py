@@ -29,7 +29,7 @@ from pathlib import Path
 from .. import output, profiles
 from ..core import app as app_core
 from ..core import settings as settings_core
-from ..core import uia
+from ..core import host, uia
 
 NAME = "app"
 HELP = "the app under check: status, start (with its own settings folder), stop, press buttons"
@@ -62,14 +62,7 @@ def add_arguments(parser) -> None:
 
 
 def pids(process: str) -> list[int]:
-    out = subprocess.run(["tasklist", "/fo", "csv", "/nh", "/fi", f"IMAGENAME eq {process}"],
-                         capture_output=True, text=True).stdout
-    found = []
-    for line in out.splitlines():
-        parts = [p.strip('"') for p in line.split('","')]
-        if len(parts) > 1 and parts[0].lower() == process.lower():
-            found.append(int(parts[1]))
-    return found
+    return host.pids(process)
 
 
 def _all_pids(names: list[str]) -> list[tuple[str, int]]:
@@ -96,8 +89,7 @@ def run(args) -> int:
         before_matches = _all_pids(names)
         before = [pid for _, pid in before_matches]
         if before_matches:
-            for name in dict.fromkeys(n for n, _ in before_matches):
-                subprocess.run(["taskkill", "/F", "/T", "/IM", name], capture_output=True)
+            host.end(list(dict.fromkeys(n for n, _ in before_matches)), force=True, with_children=True)
             deadline = time.monotonic() + 10
             while _all_pids(names) and time.monotonic() < deadline:
                 time.sleep(0.3)
@@ -105,6 +97,8 @@ def run(args) -> int:
         output.emit({"stopped": before, "running": left}, f"stopped {len(before)}" + (f"; still running {left}" if left else ""),
                     args.format)
         return output.FAILED if left else output.OK
+    if args.action in ("press", "type"):
+        host.require_windows(f"app {args.action}", uia.WINDOWS_ONLY)
     if args.action == "press":
         pid = app_core.show_main_window(info)
         result = uia.press(pid, info["main_window_title"],
@@ -139,6 +133,10 @@ def run(args) -> int:
     elif args.fresh or args.set:
         output.note("--fresh and --set need --settings-dir: the user's own settings are never written")
         return output.USAGE
+    if not exe.is_file():
+        hint = "" if host.WINDOWS else " (the profile's install path is a Windows one; pass --exe)"
+        output.note(f"no executable at {exe}{hint}")
+        return output.FAILED
     existing = [pid for _, pid in _all_pids(names)]
     if existing and not args.settings_dir:
         output.emit({"started": False, "pids": existing}, f"{target_process} already runs", args.format)

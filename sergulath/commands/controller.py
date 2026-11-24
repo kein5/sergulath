@@ -20,7 +20,7 @@ from __future__ import annotations
 import time
 
 from .. import output
-from ..core import aim, driver, steamvr
+from ..core import aim, driver, host, steamvr
 
 NAME = "controller"
 HELP = "move and press SERGULATH's virtual controllers"
@@ -120,6 +120,8 @@ def _dashboard(args) -> int:
 
 
 def run(args) -> int:
+    if not (args.action == "dashboard" and args.dashboard_action == "status"):
+        host.require_windows("the virtual controllers", driver.WINDOWS_ONLY)
     if args.action == "dashboard":
         return _dashboard(args)
     if args.action == "state":

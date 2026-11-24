@@ -28,7 +28,17 @@ jobs:
         run: |
           python -m pip install --disable-pip-version-check .
           sergulath --version
+          sergulath --help
           sergulath profiles --format json
+      - name: Windows-only commands end with "unsupported" on Linux
+        if: runner.os == 'Linux'
+        run: |
+          set +e
+          sergulath audio devices --format json | tee out.json
+          code=${PIPESTATUS[0]}
+          set -e
+          test "$code" -eq 1
+          grep -q '"status": "unsupported"' out.json
       # The virtual controller driver (a SteamVR driver DLL, no dependencies). Only Windows loads it;
       # Linux keeps the protocol and layout tests compiling.
       - name: Driver tests and build

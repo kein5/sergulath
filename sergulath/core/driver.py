@@ -19,7 +19,7 @@ import sys
 import time
 from pathlib import Path
 
-from . import steamvr
+from . import host, steamvr
 
 PORT = 39581
 NAME = "sergulath"
@@ -144,7 +144,11 @@ def vrpathreg() -> Path:
     raise DriverError("SteamVR's vrpathreg was not found (no runtime in openvrpaths.vrpath)")
 
 
+WINDOWS_ONLY = "the virtual controller driver is built and staged as a Windows DLL (bin/win64) only"
+
+
 def register(folder: Path = STAGE) -> None:
+    host.require_windows("the virtual controller driver", WINDOWS_ONLY)
     if not (folder / "bin" / "win64" / DLL_NAME).is_file():
         raise DriverError(f"no driver at {folder}: run `sergulath driver build` first")
     subprocess.run([str(vrpathreg()), "adddriver", str(folder)], check=True, capture_output=True, timeout=30)
@@ -162,6 +166,7 @@ def unregister(folder: Path = STAGE) -> None:
 
 def build(cargo: str = "cargo", toolchain: str | None = None) -> Path:
     """Build the driver DLL with cargo and stage the driver folder SteamVR loads (build/driver)."""
+    host.require_windows("the virtual controller driver", WINDOWS_ONLY)
     if not SOURCE.is_dir():
         raise DriverError(f"no driver sources at {SOURCE}: run from a checkout of the repository")
     if steamvr_holds(STAGE):
@@ -194,19 +199,6 @@ def steamvr_holds(folder: Path) -> bool:
 
 # ---- restarting SteamVR ----------------------------------------------------------------------
 
-def steam_exe() -> Path | None:
-    if sys.platform != "win32":
-        return None
-    import winreg
-
-    try:
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam") as key:
-            value = winreg.QueryValueEx(key, "SteamExe")[0]
-            return Path(value) if value else None
-    except OSError:
-        return None
-
-
 def _wait(predicate, timeout: float, step: float = 1.0) -> bool:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -221,11 +213,10 @@ def quit_steamvr(timeout: float = 30.0) -> None:
     running = steamvr.running_processes
     if "vrserver.exe" not in running():
         return
-    subprocess.run(["taskkill", "/IM", "vrmonitor.exe"], capture_output=True, timeout=15)
+    host.end(["vrmonitor.exe"])
     if _wait(lambda: "vrserver.exe" not in running(), timeout):
         return
-    for name in ("vrmonitor.exe", "vrcompositor.exe", "vrdashboard.exe", "vrwebhelper.exe", "vrserver.exe"):
-        subprocess.run(["taskkill", "/F", "/IM", name], capture_output=True, timeout=15)
+    host.end(["vrmonitor.exe", "vrcompositor.exe", "vrdashboard.exe", "vrwebhelper.exe", "vrserver.exe"], force=True)
     if not _wait(lambda: "vrserver.exe" not in running(), 10):
         raise DriverError("SteamVR did not quit")
 
@@ -238,11 +229,11 @@ def start_steamvr(timeout: float = 90.0, attempts: int = 2) -> None:
     (vrserver.txt: VRInitError_Driver_WirelessHmdNotConnected). Quitting and starting once more
     brought it back (2026-11-23), so a start that times out is tried again.
     """
-    exe = steam_exe()
-    if exe is None or not exe.is_file():
-        raise DriverError("Steam was not found (HKCU\\Software\\Valve\\Steam\\SteamExe)")
+    launcher = host.steam_launcher()
+    if launcher is None:
+        raise DriverError(f"Steam was not found ({host.steam_not_found_hint()})")
     for attempt in range(1, attempts + 1):
-        subprocess.Popen([str(exe), "-applaunch", STEAMVR_APP_ID], stdout=subprocess.DEVNULL,
+        subprocess.Popen([*launcher, "-applaunch", STEAMVR_APP_ID], stdout=subprocess.DEVNULL,
                          stderr=subprocess.DEVNULL, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         if _wait(lambda: not steamvr.missing_processes(), timeout):
             break

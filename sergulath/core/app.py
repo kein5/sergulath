@@ -12,7 +12,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from . import window_capture
+from . import host, window_capture
 
 
 def process_names(profile_app: dict) -> list[str]:
@@ -25,12 +25,8 @@ def process_names(profile_app: dict) -> list[str]:
 
 
 def running_pid(process: str) -> int | None:
-    for line in subprocess.run(["tasklist", "/fo", "csv", "/nh", "/fi", f"IMAGENAME eq {process}"],
-                               capture_output=True, text=True, check=True).stdout.splitlines():
-        parts = [p.strip('"') for p in line.split('","')]
-        if len(parts) > 1 and parts[0].lower() == process.lower():
-            return int(parts[1])
-    return None
+    found = host.pids(process)
+    return found[0] if found else None
 
 
 def running_pid_for(profile_app: dict) -> int | None:

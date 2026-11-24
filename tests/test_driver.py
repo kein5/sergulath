@@ -12,7 +12,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 from sergulath import cli, output
-from sergulath.core import aim, driver, placement, steamvr
+from sergulath.core import aim, driver, host, placement, steamvr
 
 
 def close(a, b, places=6):
@@ -111,11 +111,13 @@ class CommandsTest(unittest.TestCase):
         self.assertEqual(code, 7)
         self.assertEqual(calls, ["register", "unregister"])
 
+    @mock.patch.object(host, "WINDOWS", True)  # pressing needs the Windows-only driver; mocked here
     def test_press_needs_a_button_the_profile_knows(self):
         code, _, err = _run(["overlay", "press", "--overlay", "ASTAROT3", "--button", "nothing"])
         self.assertEqual(code, output.USAGE)
         self.assertIn("log", err)
 
+    @mock.patch.object(host, "WINDOWS", True)
     def test_press_reports_the_hit_and_exits_1_without_one(self):
         from sergulath.core import press
 

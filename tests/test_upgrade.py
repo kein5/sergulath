@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest import mock
 
 from sergulath import cli, output, profiles
-from sergulath.core import steamvr, suite, upgrade
+from sergulath.core import host, steamvr, suite, upgrade
 
 
 def _run(argv):
@@ -308,6 +308,7 @@ class UpgradeCommandTest(unittest.TestCase):
             beta_zip = _make_package_zip(root / "beta.zip", "0.6.1-beta.1")
             env_patch = {"SERGULATH_UPGRADE_FROM": str(old_zip), "SERGULATH_UPGRADE_TO": str(beta_zip)}
             with mock.patch.dict(os.environ, env_patch, clear=False), \
+                    mock.patch.object(host, "WINDOWS", True), \
                     mock.patch.object(steamvr, "missing_processes", lambda running=None: ["vrserver.exe"]):
                 code, _, err = _run([
                     "upgrade", "check", "--work-dir", str(root / "work"), "--check-overlay", "ASTAROT0",

@@ -21,7 +21,7 @@ import subprocess
 import sys
 
 from .. import output
-from ..core import driver, settings, steamvr
+from ..core import driver, host, settings, steamvr
 
 NAME = "hmd"
 HELP = "a virtual headset (the null driver) for unattended checks, with a snapshot and restore"
@@ -53,6 +53,8 @@ def changes(window: list[int]) -> dict:
 
 
 def switch_on(window: list[int], with_driver: bool) -> None:
+    if with_driver:  # before anything changes
+        host.require_windows("--with-driver", driver.WINDOWS_ONLY)
     if settings.latest_snapshot(label=LABEL):
         raise RuntimeError("a virtual-headset snapshot is still pending; run `sergulath hmd off` first")
     driver.quit_steamvr()

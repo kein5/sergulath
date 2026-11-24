@@ -84,7 +84,7 @@ def add_arguments(parser) -> None:
 def run(args) -> int:
     since = datetime.now().astimezone() - timedelta(minutes=args.minutes) if args.minutes > 0 else None
     sources = set(args.source or ("vrserver", "vrcompositor", "app"))
-    folder = steamvr_status.steam_logs_from_registry()
+    folder = steamvr_status.steam_logs_folder()
     logs = []
     if folder:
         for name in ("vrserver", "vrcompositor"):

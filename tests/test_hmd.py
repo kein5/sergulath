@@ -11,7 +11,7 @@ from unittest import mock
 
 from sergulath import cli, output
 from sergulath.commands import hmd
-from sergulath.core import aim, driver, placement, settings
+from sergulath.core import aim, driver, host, placement, settings
 
 
 def close(a, b):
@@ -52,7 +52,8 @@ class HmdCommandTest(unittest.TestCase):
                     mock.patch.object(driver, "register", lambda: calls.append("register")), \
                     mock.patch.object(driver, "wait_loaded", lambda: calls.append("loaded")), \
                     mock.patch.object(driver, "is_registered", lambda: True), \
-                    mock.patch.object(driver, "unregister", lambda: calls.append("unregister")):
+                    mock.patch.object(driver, "unregister", lambda: calls.append("unregister")), \
+                    mock.patch.object(host, "WINDOWS", True):  # the driver DLL is Windows-only; mocked here
                 hmd.switch_on([0, 0, 480, 270], with_driver=True)
                 data = json.loads(file.read_text())
                 self.assertEqual(data["steamvr"]["forcedDriver"], "null")

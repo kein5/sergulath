@@ -16,7 +16,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .. import output, profiles
-from ..core import app, overlay, png, steamvr, uia, window_capture
+from ..core import app, host, overlay, png, steamvr, uia, window_capture
 
 NAME = "caption"
 HELP = "send the app's sample caption, and check that the caption overlay renders"
@@ -84,5 +84,9 @@ def _check(args, profile) -> int:
 
 
 def run(args) -> int:
+    if args.action == "sample":
+        host.require_windows("caption sample", uia.WINDOWS_ONLY)
+    elif args.view:
+        host.require_windows("caption check --view", window_capture.WINDOWS_ONLY)
     profile = profiles.load(args.profile)
     return _sample(args, profile) if args.action == "sample" else _check(args, profile)

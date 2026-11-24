@@ -10,6 +10,10 @@ import ctypes
 from ctypes import wintypes
 from dataclasses import dataclass
 
+from . import host
+
+WINDOWS_ONLY = "it reads desktop windows through Win32 (EnumWindows, PrintWindow)"
+
 user32 = ctypes.WinDLL("user32", use_last_error=True) if hasattr(ctypes, "WinDLL") else None
 gdi32 = ctypes.WinDLL("gdi32", use_last_error=True) if hasattr(ctypes, "WinDLL") else None
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True) if hasattr(ctypes, "WinDLL") else None
@@ -50,6 +54,7 @@ def _process_name(pid: int) -> str:
 
 def windows(process: str | None = None) -> list[Window]:
     """Top-level windows, optionally only those of one process (by exe name)."""
+    host.require_windows("finding desktop windows", WINDOWS_ONLY)
     found: list[Window] = []
     proto = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
 
@@ -79,6 +84,7 @@ class _BitmapInfoHeader(ctypes.Structure):
 
 def capture_client(hwnd: int) -> tuple[int, int, bytes]:
     """The window's client area as (width, height, RGBA bytes). Works while other windows cover it."""
+    host.require_windows("capturing a window", WINDOWS_ONLY)
     # Per-monitor DPI awareness, so a scaled display gives the window's real pixels.
     user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
     rect = wintypes.RECT()

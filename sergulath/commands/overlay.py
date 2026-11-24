@@ -16,7 +16,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .. import output, profiles
-from ..core import overlay, press, steamvr
+from ..core import driver, host, overlay, press, steamvr
 
 NAME = "overlay"
 HELP = "list an app's overlays (found, shown, alpha, width, placement), or press a spot on one"
@@ -78,6 +78,7 @@ def _press(args) -> int:
 
 def run(args) -> int:
     if getattr(args, "action", None) == "press":
+        host.require_windows("overlay press", driver.WINDOWS_ONLY)
         return _press(args)
     profile = profiles.load(args.profile)
     labels = profile.get("legacy_overlays" if args.legacy else "overlays", {})

@@ -2,11 +2,11 @@
 
 **Sergulath's Emulation, Recording, Gauging & Unattended-Launch Automation Testing Harness**
 
-Tools for operating and checking SteamVR overlay apps on a real headset (first a Steam Frame) from a Windows PC: SteamVR state and settings, the VR view, overlay pixels, device tracking and, later, virtual devices.
+Tools for operating and checking SteamVR overlay apps on a real headset (first a Steam Frame) from a Windows PC: SteamVR state and settings, the VR view, overlay pixels, device tracking, and virtual devices (a headset and two controllers) for checks nobody wears.
 
 [日本語](docs/README.ja.md)
 
-> Status: stage 0. `watch`, `overlay` and `profiles` are here; the other commands move in step by step (see [Plan](#plan)).
+> Status: stage 2. Reading SteamVR, the overlays and the headset's image, pressing overlays with virtual controllers on a virtual headset, stand-in speech servers, and a suite runner for an app's end-to-end cases are here; see [Plan](#plan) for what each command has reached.
 
 ## The command line comes first
 
@@ -17,13 +17,14 @@ Every command keeps these conventions:
 - Data goes to stdout, messages go to stderr.
 - `--format text` (the default) is for people; `--format json` prints JSON Lines, one object per record, for `jq` and other commands.
 - No command prompts or waits for input.
-- Exit codes: `0` done, `1` ran but found nothing, `2` usage error, `3` SteamVR is not running (the commands never start it), `4` failed.
+- Exit codes: `0` done, `1` ran but found nothing, `2` usage error, `3` SteamVR is not running, `4` failed. Read-only commands never start SteamVR; only the ones that say so (`steamvr start`, `--restart`, `hmd`, `view open`, `chaperone restore`) quit and start it, always through Steam.
 - Files a command writes are named by an option (`--csv`, `--save`); nothing is written elsewhere.
 
 ## Use
 
 ```sh
 pip install .            # Python 3.11 or later, Windows
+pip install .[audio]     # also `sergulath audio` (PyAudioWPatch)
 
 sergulath steamvr status                   # SteamVR running? status window? version, headset and controllers
 sergulath profiles                         # the bundled app profiles and their overlay keys
@@ -57,7 +58,7 @@ sergulath caption check --line multi
 sergulath caption sample stop               # stop the sample and leave the settings page
 ```
 
-How it works: a second start of the app's executable hands over to the running app, which shows its main window (the app stays single). The buttons are then pressed through Windows UI Automation by their accessible names, which the profile lists per UI language (`[ui.ja]` for ASTAROT). The sample is the app's own: it sends a caption once a second while the settings page stays open, and changes no setting. `caption check` reads the caption overlay: shown, not transparent (a caption fades out a few seconds after the last line) and drawn. The VR View shows the caption only while the headset tracks; a Steam Frame left on a desk loses tracking and the view goes black, which `--view` records as blank.
+How it works: a second start of the app's executable hands over to the running app, which shows its main window (the app stays single). The buttons are then pressed through Windows UI Automation by their accessible names, which the profile lists per UI language (`[ui.ja]` for ASTAROT). The sample is the app's own: it sends a caption once a second while the settings page stays open, and changes no setting. `caption check` reads the caption overlay: shown, not transparent (a caption fades out a few seconds after the last line) and drawn. The VR View shows the caption only while the headset tracks; a Steam Frame left on a desk loses tracking and the view turns one flat colour, which `--view` records as blank. To see a caption with nobody wearing a headset, cut it out of the virtual headset's image (see [Checks nobody wears](#checks-nobody-wears)).
 
 `watch`, `overlay`, `profiles` and `caption check` only read; `caption sample` presses the app's own sample button. `watch` and `overlay` connect to a SteamVR that already runs (`vrserver` and `vrcompositor`) as a background OpenVR client.
 
@@ -90,6 +91,22 @@ sergulath hmd run --with-driver -- python examples/astarot_launcher_e2e.py 6
 ```
 
 `hmd run` snapshots `steamvr.forcedDriver` and `driver_null.*`, registers the virtual controllers and restarts SteamVR through Steam; the null headset reports a fixed head pose at the standing origin. The script closes SteamVR's dashboard (SteamVR opens it when no game runs, and apps get no buttons while it is open), holds the left hand so the launcher faces the head, and presses the launcher's log button six times: 12 of 12 presses in two runs toggled the VR panel, and 10 of 10 more by hand. Afterwards `hmd run` restores the settings, removes the driver and restarts SteamVR, and the Steam Frame came back as the headset by itself. While the virtual headset is on, the Frame is not SteamVR's headset and shows nothing from the PC. A press holds the trigger 0.3 s: ASTAROT missed 0.15 s, and 0.6 s is its long press (the log button then recalls the log instead).
+
+## Checks nobody wears
+
+A Steam Frame on a desk loses tracking, sleeps, and takes its controllers with it. The virtual headset and controllers stand in for a person, and stand-in servers stand in for the models:
+
+| What | How | Details |
+|---|---|---|
+| A headset with a fixed head pose | `sergulath hmd on --with-driver --window 0 0 1920 1080` (snapshot, restart through Steam), `hmd off` | [Pressing an overlay](#pressing-an-overlay) |
+| What the headset shows | `sergulath view save --headset`: the virtual headset's window, both eyes, scene and overlays | [What the PC can see](#what-the-pc-can-see) |
+| One overlay as the wearer sees it | `sergulath view save --headset --overlay ASTAROT0`: the overlay's box, found from its pose and a calibration probe. It reads overlays whose pixels SteamVR does not hand out (GPU textures, a headset in standby) | [docs/checks/headset-view.md](docs/checks/headset-view.md) |
+| Captions with speaker names, without a model | `sergulath asr serve`: a stand-in speech.cpp server that sends scripted, speaker-labelled captions | [docs/checks/speaker-names.md](docs/checks/speaker-names.md) |
+| Speech reaching the virtual microphone, without a model | `sergulath tts serve` answers with a tone; `sergulath audio check` listens to the virtual cable's loopback | [docs/checks/tts-virtual-mic.md](docs/checks/tts-virtual-mic.md) |
+| The VR View and the play area | `sergulath view open` / `close`, `sergulath chaperone show` / `apply` / `restore` | [docs/checks/view-and-chaperone.md](docs/checks/view-and-chaperone.md) |
+| An app's end-to-end cases in one run | `sergulath suite run --cases suites/astarot-e2e.toml` (ASTAROT's 26 cases; the app runs with its own settings folder) | [docs/checks/e2e-suite.md](docs/checks/e2e-suite.md) |
+
+What still needs a person: a worn, tracking headset (captions in the VR View, the headset waking from standby), lifting the headset (tracking coming back), and anything the standalone headset draws itself.
 
 ## Why
 
@@ -127,7 +144,7 @@ Each part is a subcommand of `sergulath`. Commands that change something have a 
 | `sergulath upgrade channel` / `check` | Checks the update channel manifest (read-only), or tests upgrading from an older version (0.6.0) to the beta channel or a local package in an isolated folder: settings and models survive and the updated app launches cleanly. See [docs/checks/soak-and-upgrade.md](docs/checks/soak-and-upgrade.md) | 2, done |
 | `sergulath app status` / `start` / `stop` / `press` | The app under check: start it with a settings folder of its own (`--settings-dir`, `--fresh`), stop it, press its buttons by accessible name | 2, done |
 
-Stage 0 turns the scripts that already exist into commands. Stage 1 measures how far a real headset can be checked without a person. Stage 2 is decided from those measurements.
+Stage 0 turned the scripts that already existed into commands. Stage 1 measured how far a real headset can be checked without a person: SteamVR answers no overlay hit and hands out no overlay pixels while a Steam Frame is in standby, and the VR View is empty while it does not track. Stage 2 follows from that: virtual devices for what needs a pose, the headset's image for what needs pixels, stand-in servers for what needs a model, and a suite runner that puts them together.
 
 ## What the PC can see
 
@@ -137,7 +154,8 @@ Measured on 2026-11-22 with a Steam Frame over Steam Link, SteamVR 2.19.4 and VR
 |---|---|---|---|
 | VR View window (`sergulath view save`) | yes | yes | no: the view went black while the headset showed that screen |
 | SteamVR screenshot API (`sergulath view screenshot`) | yes | no | no |
-| Overlay pixels (`sergulath overlay --save`) | no | one overlay at a time | no |
+| Overlay pixels (`sergulath overlay --save`) | no | one overlay at a time, only raw-pixel overlays and not while the headset is in standby | no |
+| The virtual headset's window (`sergulath view save --headset`, `--overlay KEY` for one overlay; measured 2026-11-23) | yes | yes, as drawn by the compositor | not applicable |
 
 A standalone headset draws its system screens on its own side; they do not pass through the PC's compositor, so no PC-side route includes them.
 
@@ -164,6 +182,7 @@ The VR View shows the scene only while the headset tracks. When a Frame on a des
 
 - Windows 10 or 11 with SteamVR (CI runs the unit tests on Windows and Linux)
 - Python 3.11 or later and [pyopenvr](https://github.com/cmbruns/pyopenvr) for the client tools
+- For `sergulath audio`: PyAudioWPatch (`pip install .[audio]`); for the speech check, a virtual audio cable (VB-CABLE was used)
 - For the virtual controller driver: a Rust toolchain (no C++ compiler; the driver builds its vtables itself). CI builds and tests it on Windows and Linux; only Windows has been tried with SteamVR
 
 ## Contributing

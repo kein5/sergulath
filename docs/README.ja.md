@@ -2,11 +2,11 @@
 
 **Sergulath's Emulation, Recording, Gauging & Unattended-Launch Automation Testing Harness**
 
-SteamVR のオーバーレイを使うアプリを、Windows の PC から実機のヘッドセット（まずは Steam Frame）で動かして確かめるための道具です。SteamVR の状態と設定、VR表示、オーバーレイの画素、機器の追跡を扱い、のちに仮想の機器も扱います。
+SteamVR のオーバーレイを使うアプリを、Windows の PC から実機のヘッドセット（まずは Steam Frame）で動かして確かめるための道具です。SteamVR の状態と設定、VR表示、オーバーレイの画素、機器の追跡を扱います。人がかぶらなくても確かめられるように、仮想の機器（ヘッドセット1台とコントローラー2本）も出します。
 
 [English](../README.md)
 
-> 状態：段階0です。`watch`、`overlay`、`profiles` を入れました。ほかのコマンドは段階を追って移します（[計画](#計画)）。
+> 状態：段階2です。SteamVR、オーバーレイ、ヘッドセットの映像の読み取り、仮想のヘッドセット上で仮想コントローラーを使ってオーバーレイを押すこと、音声認識と読み上げの代わりのサーバー、アプリの E2E のケースをまとめて走らせる道具がそろっています。コマンドごとの進み具合は[計画](#計画)を見てください。
 
 ## コマンドラインを中心にする
 
@@ -17,13 +17,14 @@ SERGULATH はコマンドラインの道具です。できることはすべて 
 - データは標準出力に、メッセージは標準エラー出力に出す。
 - `--format text`（既定）は人が読むための形。`--format json` は JSON Lines（1行に1件のオブジェクト）で出し、`jq` やほかのコマンドに渡せる。
 - 入力を求めたり、入力を待ったりしない。
-- 終了コード：`0` 完了、`1` 実行したが探したものがなかった、`2` 使い方の誤り、`3` SteamVR が動いていない（コマンドが SteamVR を起動することはない）、`4` 失敗。
+- 終了コード：`0` 完了、`1` 実行したが探したものがなかった、`2` 使い方の誤り、`3` SteamVR が動いていない、`4` 失敗。読み取りだけのコマンドは SteamVR を起動しません。SteamVR を終了して起動し直すのは、そう明示したコマンド（`steamvr start`、`--restart`、`hmd`、`view open`、`chaperone restore`）だけで、起動は必ず Steam から行います。
 - コマンドが書くファイルは、オプション（`--csv`、`--save`）で名前を指定したものだけ。
 
 ## 使い方
 
 ```sh
 pip install .            # Python 3.11 以降、Windows
+pip install .[audio]     # `sergulath audio` も使う（PyAudioWPatch）
 
 sergulath steamvr status                   # SteamVR が動いているか、状態ウィンドウ、版、ヘッドセットとコントローラーの状態
 sergulath profiles                         # 同梱のアプリのプロファイルと、オーバーレイのキー
@@ -57,7 +58,7 @@ sergulath caption check --line multi
 sergulath caption sample stop               # サンプルを止め、設定のページを閉じる
 ```
 
-仕組み：アプリの実行ファイルをもう一度起動すると、動いているアプリに引き継がれ、そのアプリがメイン画面を出します（アプリは1つのまま）。そのあと、Windows の UI Automation でボタンをアクセシビリティ上の名前で押します。名前はプロファイルに UI の言語ごとに書いてあります（ASTAROT は `[ui.ja]`）。サンプルはアプリ自身の機能で、設定のページを開いている間、字幕を1秒ごとに送ります。設定は変えません。`caption check` は字幕のオーバーレイが表示中で、透明でなく（字幕は最後の行から数秒で消えます）、描かれているかを読みます。VR表示に字幕が映るのは、ヘッドセットが位置を出している間だけです。机に置いた Steam Frame は位置を見失って VR表示が黒くなり、`--view` はそれを空の画像として記録します。
+仕組み：アプリの実行ファイルをもう一度起動すると、動いているアプリに引き継がれ、そのアプリがメイン画面を出します（アプリは1つのまま）。そのあと、Windows の UI Automation でボタンをアクセシビリティ上の名前で押します。名前はプロファイルに UI の言語ごとに書いてあります（ASTAROT は `[ui.ja]`）。サンプルはアプリ自身の機能で、設定のページを開いている間、字幕を1秒ごとに送ります。設定は変えません。`caption check` は字幕のオーバーレイが表示中で、透明でなく（字幕は最後の行から数秒で消えます）、描かれているかを読みます。VR表示に字幕が映るのは、ヘッドセットが位置を出している間だけです。机に置いた Steam Frame は位置を見失って VR表示が一色になり、`--view` はそれを空の画像として記録します。誰もかぶらずに字幕を見るには、仮想のヘッドセットの映像から切り出します（[人がかぶらない確認](#人がかぶらない確認)）。
 
 `watch`、`overlay`、`profiles`、`caption check` は読み取りだけをします。`caption sample` はアプリ自身のサンプルのボタンを押します。`watch` と `overlay` はすでに動いている SteamVR（`vrserver` と `vrcompositor`）にバックグラウンドの OpenVR クライアントとしてつなぎます。
 
@@ -91,6 +92,22 @@ sergulath hmd run --with-driver -- python examples/astarot_launcher_e2e.py 6
 
 `hmd run` は `steamvr.forcedDriver` と `driver_null.*` の写しを取ってから設定を変え、仮想コントローラーを登録し、SteamVR を Steam から起動し直します。null のヘッドセットは立ち位置の原点に固定した頭の位置を返します。スクリプトはまず SteamVR のダッシュボードを閉じます（ゲームがないと SteamVR が開き、開いているあいだアプリにボタンが届きません）。次に、ランチャーが頭のほうを向くように左手を置き、ランチャーのログのボタンを6回押します。2回の実行で12回とも VR パネルが開閉し、手で試した10回もすべて開閉しました。終わると `hmd run` は設定を戻し、ドライバーを外し、SteamVR を起動し直します。Steam Frame は自動でヘッドセットに戻りました。仮想のヘッドセットを使うあいだ、Frame は SteamVR のヘッドセットではなく、PC からの映像は映りません。押すときはトリガーを 0.3 秒押し続けます。ASTAROT は 0.15 秒の押下を取りこぼし、0.6 秒は長押しになります（ログのボタンでは、ログを呼び戻す動作になります）。
 
+## 人がかぶらない確認
+
+机に置いた Steam Frame は位置を見失い、待機に入り、コントローラーもいっしょに切れます。人の代わりには仮想のヘッドセットとコントローラーを使い、モデルにはその代わりをするサーバーを使います。
+
+| 確かめること | 方法 | 詳しく |
+|---|---|---|
+| 頭の位置が決まったヘッドセット | `sergulath hmd on --with-driver --window 0 0 1920 1080`（写しを取り、Steam から起動し直す）、`hmd off` | [オーバーレイを押す](#オーバーレイを押す) |
+| ヘッドセットに映るもの | `sergulath view save --headset`：仮想のヘッドセットのウィンドウ。両目、シーンとオーバーレイ | [PC から見えるもの](#pc-から見えるもの) |
+| かぶった人に見えるとおりのオーバーレイ1つ | `sergulath view save --headset --overlay ASTAROT0`：オーバーレイの位置と較正用の目印から範囲を求めて切り出す。SteamVR が画素を渡さないオーバーレイ（GPU のテクスチャ、待機中のヘッドセット）も読める | [docs/checks/headset-view.md](checks/headset-view.md) |
+| 話者名つきの字幕（モデルなし） | `sergulath asr serve`：決めた文を話者のラベル付きで送る speech.cpp の代わりのサーバー | [docs/checks/speaker-names.md](checks/speaker-names.md) |
+| 読み上げが仮想マイクに届くか（モデルなし） | `sergulath tts serve` が音で答え、`sergulath audio check` が仮想ケーブルのループバックを聞く | [docs/checks/tts-virtual-mic.md](checks/tts-virtual-mic.md) |
+| VR表示とプレイエリア | `sergulath view open` / `close`、`sergulath chaperone show` / `apply` / `restore` | [docs/checks/view-and-chaperone.md](checks/view-and-chaperone.md) |
+| アプリの E2E のケースを一度に | `sergulath suite run --cases suites/astarot-e2e.toml`（ASTAROT の 26 件。アプリは専用の設定フォルダーで動かす） | [docs/checks/e2e-suite.md](checks/e2e-suite.md) |
+
+まだ人が要るもの：かぶって位置が取れているヘッドセット（VR表示の字幕、待機からの復帰）、ヘッドセットを持ち上げること（追跡が戻るか）、単体で動くヘッドセットが自分で描く画面。
+
 ## 作る理由
 
 VR の中でオーバーレイを確かめるには、ヘッドセットをかぶる人が要ります。机に置いた Steam Frame は位置を見失い、数分で待機に入り、コントローラーもいっしょに切れ、VR表示（ミラー）も黒くなります。SERGULATH はこうした確認を毎回同じ手順で行え、できるところは人がいなくても行えるようにする手順をまとめます。アプリごとのリポジトリに、その場かぎりのスクリプトとして散らばらないようにするためです。
@@ -110,10 +127,10 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 | `sergulath steamvr status` | SteamVR が動いているか、`vrmonitor` が動いているか、版、ヘッドセットとコントローラーの状態を示す | 0（済み） |
 | `sergulath steamvr start` / `wait` / `stop` | SteamVR を Steam から起動し、ヘッドセットの接続（または追跡）を待ち、SteamVR を終了する | 0（済み） |
 | `sergulath settings show` / `set` / `restore` / `pending` | SteamVR の設定（`section.name=値`）。変える前に対象のキーの写しを取り、キーごとに元に戻す | 0（済み） |
-| `sergulath view save` / `screenshot` | ヘッドセットに映っているものを保存する。VR表示のウィンドウ（シーンとオーバーレイ）、仮想のヘッドセットのウィンドウ（`--headset`）、SteamVR のスクリーンショット（シーンだけ）のどれか。`--headset --overlay KEY` は、SteamVR が画素を渡さないオーバーレイを、仮想のヘッドセットの映像から切り出す。[PC から見えるもの](#pc-から見えるもの)と [docs/checks/headset-view.md](checks/headset-view.md) を参照 | 0（済み） |
+| `sergulath view save` / `screenshot` | ヘッドセットに映っているものを保存する。VR表示のウィンドウ（シーンとオーバーレイ）、仮想のヘッドセットのウィンドウ（`--headset`）、SteamVR のスクリーンショット（シーンだけ）のどれか。`--headset --overlay KEY` は SteamVR が画素を渡さないオーバーレイを、仮想のヘッドセットの映像から切り出す。[PC から見えるもの](#pc-から見えるもの)と [docs/checks/headset-view.md](checks/headset-view.md) を参照 | 0（済み） |
 | `sergulath caption sample start` / `stop`、`sergulath caption check` | アプリのサンプルの字幕をセッションの側から送り、字幕のオーバーレイが描かれているかを確かめる | 0（済み） |
 | `sergulath frame overlays` | 単体で動くヘッドセット自身のシステムのオーバーレイを SSH で読む（状態と、読めるものは画像） | 1（試作） |
-| `sergulath view open` / `close` | 人の手なしで VR表示を開き（`steamvr.showMirrorView` の写しを取って SteamVR を起動し直す）、元に戻す。[docs/checks/view-and-chaperone.md](view-and-chaperone.md) を参照 | 1（済み） |
+| `sergulath view open` / `close` | 人の手なしで VR表示を開き（`steamvr.showMirrorView` の写しを取って SteamVR を起動し直す）、元に戻す。[docs/checks/view-and-chaperone.md](checks/view-and-chaperone.md) を参照 | 1（済み） |
 | `sergulath chaperone show` / `apply` / `restore` | プレイエリアを読む。`chaperone_info.vrchap` の写しを取ってから、chaperone の設定 API で大きさ（と壁）を設定する。`restore` でファイルを書き戻す。SteamVR 2.19.4 は「一時的」な反映もファイルに書くので、変更は今の起動のあいだだけでは終わらず、`restore` まで残る | 1（済み） |
 | `sergulath driver build` / `register` / `unregister` / `run` / `status` | 仮想コントローラーのドライバー（左手と右手を出す OpenVR のドライバー）。確認のあいだだけ登録する。[オーバーレイを押す](#オーバーレイを押す)を参照 | 2（試作。前倒し） |
 | `sergulath controller connect` / `pose` / `button` / `dashboard` | 仮想コントローラーを動かし、ボタンを押す。`pose --show KEY` は、手首のオーバーレイがヘッドセットの正面に来るように手を置く。`dashboard close` は、アプリへのボタンを止める SteamVR のダッシュボードを閉じる | 2（試作） |
@@ -127,7 +144,7 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 | `sergulath upgrade channel` / `check` | 更新チャネルのマニフェストを確認する（読み取りだけ）、または隔離したフォルダーで旧版（0.6.0）からベータチャネルかローカルの配布ファイルへ更新し、設定とモデルが引き継がれて通常起動できることを確かめる。[docs/checks/soak-and-upgrade.md](checks/soak-and-upgrade.md) を参照 | 2（済み） |
 | `sergulath app status` / `start` / `stop` / `press` | 確認するアプリ。専用の設定フォルダーで起動し（`--settings-dir`、`--fresh`）、止め、ボタンを名前で押す | 2（済み） |
 
-段階0ではスクリプトとしてすでにある道具をコマンドにし、段階1では実機のヘッドセットを人なしでどこまで確かめられるかを測ります。段階2はその結果を見て決めます。
+段階0ではスクリプトとしてあった道具をコマンドにしました。段階1では実機のヘッドセットを人なしでどこまで確かめられるかを測りました。Steam Frame が待機中だと、SteamVR はオーバーレイの当たり判定を返さず、オーバーレイの画素も渡しません。位置を見失っているあいだは、VR表示も空です。段階2はこの結果から決めました。位置が要るものには仮想の機器を、画素が要るものにはヘッドセットの映像を、モデルが要るものには代わりのサーバーを使い、それらを1つにまとめて走らせる道具を作りました。
 
 ## PC から見えるもの
 
@@ -137,7 +154,8 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 |---|---|---|---|
 | VR表示のウィンドウ（`sergulath view save`） | 写る | 写る | 写らない。ヘッドセットがその画面を出している間、VR表示は黒くなった |
 | SteamVR のスクリーンショットの API（`sergulath view screenshot`） | 写る | 写らない | 写らない |
-| オーバーレイの画素（`sergulath overlay --save`） | 写らない | 1つずつ写る | 写らない |
+| オーバーレイの画素（`sergulath overlay --save`） | 写らない | 1つずつ写る。画素で渡されたオーバーレイだけで、ヘッドセットの待機中は写らない | 写らない |
+| 仮想のヘッドセットのウィンドウ（`sergulath view save --headset`。1つだけなら `--overlay KEY`。2026-11-23 に測定） | 写る | コンポジターが描いたとおりに写る | 当てはまらない |
 
 単体で動くヘッドセットは、システムの画面をヘッドセットの側で描きます。PC のコンポジターを通らないので、PC 側のどの経路にも写りません。
 
@@ -164,6 +182,7 @@ VR表示にシーンが映るのは、ヘッドセットが位置を出してい
 
 - SteamVR が入った Windows 10 または 11（CI は単体テストを Windows と Linux で動かす）
 - クライアントの道具には Python 3.11 以降と [pyopenvr](https://github.com/cmbruns/pyopenvr)
+- `sergulath audio` には PyAudioWPatch（`pip install .[audio]`）。読み上げの確認には仮想のオーディオケーブル（VB-CABLE で確かめた）
 - 仮想コントローラーのドライバーには Rust のツールチェーン（C++ のコンパイラーは要らない。ドライバーが自分で vtable を作る）。CI は Windows と Linux でビルドと試験をする。SteamVR で試したのは Windows だけ
 
 ## 変更の入れ方

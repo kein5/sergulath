@@ -1,7 +1,8 @@
 """Long-running stability check (soak): process liveness, memory growth and overlay continuity.
 
-Read-only: reads the target process tree's memory through Windows APIs (ctypes, no third-party
-dependencies) and optionally samples OpenVR overlays through an existing SteamVR session.
+Read-only: reads the target process tree's memory through Windows APIs (ctypes) or Linux's
+/proc, with no third-party dependencies, and optionally samples OpenVR overlays through an
+existing SteamVR session.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 
+from . import host
 from . import overlay as overlay_core
 
 MB = 1024 * 1024
@@ -219,21 +221,56 @@ def _win_memory_bytes(pid: int) -> tuple[int, int] | None:
         kernel32.CloseHandle(handle)
 
 
+def _linux_memory_bytes(pid: int, proc: Path = Path("/proc")) -> tuple[int, int] | None:
+    """(private_bytes, resident_bytes) for one running PID on Linux, or None.
+
+    Private: Private_Clean + Private_Dirty + Swap from smaps_rollup, the nearest to Windows'
+    private bytes. Resident: VmRSS from status, the nearest to the working set."""
+    try:
+        status = (proc / str(pid) / "status").read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    fields = _kb_fields(status)
+    if fields.get("State", "").startswith("Z"):  # a zombie has ended
+        return None
+    resident = fields.get("VmRSS_kb", 0)
+    try:
+        rollup = _kb_fields((proc / str(pid) / "smaps_rollup").read_text(encoding="utf-8", errors="replace"))
+        private = rollup.get("Private_Clean_kb", 0) + rollup.get("Private_Dirty_kb", 0) + rollup.get("Swap_kb", 0)
+    except OSError:  # another user's process, or a kernel without smaps_rollup
+        private = fields.get("RssAnon_kb", 0) + fields.get("VmSwap_kb", 0)
+    return private * 1024, resident * 1024
+
+
+def _kb_fields(text: str) -> dict:
+    """`Name:   123 kB` lines as {"Name_kb": 123}; other lines as {"Name": "value"}."""
+    found: dict = {}
+    for line in text.splitlines():
+        name, _, value = line.partition(":")
+        parts = value.split()
+        if len(parts) == 2 and parts[1] == "kB" and parts[0].isdigit():
+            found[name.strip() + "_kb"] = int(parts[0])
+        elif name:
+            found[name.strip()] = value.strip()
+    return found
+
+
 def sample_process_tree(root_pid: int) -> ProcessMemory | None:
     """Read memory of `root_pid` and its descendants; None when `root_pid` is no longer alive."""
-    if sys.platform != "win32":
-        raise RuntimeError("process memory sampling is implemented for Windows")
-    pids = _win_process_tree_pids(root_pid)
+    if sys.platform == "win32":
+        pids, memory = _win_process_tree_pids(root_pid), _win_memory_bytes
+    else:
+        pids, memory = host.tree(root_pid, host.parent_map()), _linux_memory_bytes
     if not pids:
         return None
-    main = _win_memory_bytes(root_pid)
+    main = memory(root_pid)
     if main is None:
         return None
     main_priv, main_ws = main
     tree_priv, tree_ws = main_priv, main_ws
     count = 1
     for child in pids[1:]:
-        mem = _win_memory_bytes(child)
+        mem = memory(child)
         if mem is not None:
             tree_priv += mem[0]
             tree_ws += mem[1]

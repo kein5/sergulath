@@ -14,7 +14,7 @@ from typing import Any
 
 # Exit codes. argparse already uses 2 for usage errors.
 OK = 0
-NOT_MET = 1  # the command ran, but what it looked for was not there
+NOT_MET = 1  # the command ran, but what it looked for was not there (or this OS lacks the feature)
 USAGE = 2
 STEAMVR_NOT_RUNNING = 3
 FAILED = 4

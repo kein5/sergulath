@@ -25,6 +25,7 @@ import os
 from pathlib import Path
 
 from .. import output, profiles
+from ..core import host
 from ..core import upgrade as core
 
 NAME = "upgrade"
@@ -84,6 +85,8 @@ def _run_channel(args, profile: dict) -> int:
 
 
 def _run_check(args, profile: dict) -> int:
+    host.require_windows("upgrade check", "it installs the Windows package (setup.exe, or a ZIP holding the "
+                                          ".exe) and snapshots the installer's HKCU registry keys")
     if args.boot_wait < 0 or args.boot_timeout <= 0:
         output.note("--boot-wait must be >= 0 and --boot-timeout must be > 0")
         return output.USAGE

@@ -12,6 +12,10 @@ import json
 import subprocess
 from dataclasses import dataclass
 
+from . import host
+
+WINDOWS_ONLY = "it goes through Windows UI Automation (Windows PowerShell's UIAutomationClient)"
+
 _SCRIPT = r"""
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
@@ -79,6 +83,7 @@ class Step:
 
 def press(pid: int, window_title: str, steps: list[Step]) -> dict:
     """Run the steps in the app's top-level window `window_title`; return {ok, steps|error}."""
+    host.require_windows("pressing the app's buttons", WINDOWS_ONLY)
     request = {"pid": pid, "window": window_title, "steps": [s.to_dict() for s in steps]}
     env = {"SERGULATH_UIA": base64.b64encode(json.dumps(request, ensure_ascii=False).encode("utf-8")).decode()}
     import os

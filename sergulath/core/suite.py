@@ -201,8 +201,13 @@ def run_step(step: Step, log=None) -> StepResult:
     if log:
         log(step.run, done)
     seconds = time.monotonic() - started
-    if step.unsupported_when and done.returncode == 1:
-        matched = json_find(done.stdout, step.unsupported_when)
+    if done.returncode == 1:
+        # A step's own `unsupported_when`, or any sergulath command that reports a feature this OS
+        # lacks (`"status": "unsupported"` with `unsupported_on`, see `host.NotSupportedHere`).
+        matched = json_find(done.stdout, step.unsupported_when) if step.unsupported_when else None
+        if matched is None:
+            matched = json_find(done.stdout, {"status": "unsupported"})
+            matched = matched if matched and matched.get("unsupported_on") else None
         if matched is not None:
             reason = str(matched.get("reason") or "reported unsupported")
             return StepResult(step.run, done.returncode, False, reason, seconds, unsupported=True)

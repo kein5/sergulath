@@ -214,17 +214,17 @@ class AppStartTest(unittest.TestCase):
         def fake_pids(name):
             return list(running.get(name, []))
 
-        def fake_run(argv, **kw):
-            if argv[0] == "taskkill":
-                killed.append(argv[-1])
-                running[argv[-1]] = []
+        def fake_end(names, force=False, with_children=False):
+            for name in names:
+                killed.append(name)
+                running[name] = []
 
         with mock.patch.object(app, "pids", fake_pids):
             code, out, _ = _run(["app", "status", "--format", "json"])
             self.assertEqual(code, output.OK)
             self.assertEqual(json.loads(out)["pids"], [777])
             self.assertEqual(json.loads(out)["process"], "vrct-vox.exe")
-        with mock.patch.object(app, "pids", fake_pids), mock.patch("subprocess.run", fake_run):
+        with mock.patch.object(app, "pids", fake_pids), mock.patch.object(app.host, "end", fake_end):
             code, _, _ = _run(["app", "stop", "--format", "json"])
             self.assertEqual(code, output.OK)
             self.assertEqual(killed, ["vrct-vox.exe"])

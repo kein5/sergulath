@@ -185,6 +185,12 @@ The VR View shows the scene only while the headset tracks. When a Frame on a des
 - For `sergulath audio`: PyAudioWPatch (`pip install .[audio]`); for the speech check, a virtual audio cable (VB-CABLE was used)
 - For the virtual controller driver: a Rust toolchain (no C++ compiler; the driver builds its vtables itself). CI builds and tests it on Windows and Linux; only Windows has been tried with SteamVR
 
+### Linux
+
+`pip install .` and the command line work on Linux too. Commands that need only OpenVR, SteamVR's own files and SSH to a Steam Frame run there: `steamvr`, `settings`, `watch`, `overlay` (listing), `view screenshot`, `chaperone`, `caption check` (without `--view`), `logs` (SteamVR's logs), `frame`, `hmd` (without `--with-driver`), `controller dashboard status`, `soak`, `upgrade channel`, `asr`, `tts`, `suite` and `profiles`. Steam is looked for in `~/.steam/steam`, `~/.local/share/Steam` and the Flatpak folder, and started with `steam` on `PATH`.
+
+What needs Windows says so and exits with 1 (in JSON: `"status": "unsupported"` with `unsupported_on`, which `suite` counts as unsupported rather than failed): `app press`/`type` and `caption sample` (UI Automation), `audio` (WASAPI loopback), `view open`/`close`/`save` and `caption check --view` (window capture), `upgrade check` (the Windows installer and its registry keys), and the virtual controller driver with what uses it (`driver build`/`register`/`run`, `controller`, `overlay press`, `hmd --with-driver`). `app status`/`stop`/`start --exe` run on Linux, but the profile's install path is a Windows one.
+
 ## Contributing
 
 Branches follow ASTAROT's: work on a feature branch and open a pull request into `develop` (the default branch), merged with a merge commit; `main` is updated from `develop` only for releases. Commit messages follow Conventional Commits.

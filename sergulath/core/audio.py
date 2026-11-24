@@ -21,6 +21,8 @@ import wave
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+from . import host
+
 FRAME_MS = 20
 
 
@@ -57,6 +59,7 @@ class Level:
 
 
 def _pyaudio():
+    host.require_windows("audio", "it captures through WASAPI loopback (PyAudioWPatch)")
     try:
         import pyaudiowpatch as pyaudio
     except ImportError as e:

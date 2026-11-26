@@ -5,8 +5,11 @@
       SteamVR through Steam. The null headset reports a fixed, valid head pose at the standing
       origin, looking along -z. With --with-driver the virtual controllers are registered in the
       same restart. The null driver shows what the headset sees in a small desktop window
-      ("Headset Window", 480x270 at the top left by default).
-  hmd off       Restore the snapshot, remove the virtual controllers, restart SteamVR.
+      ("Headset Window", 480x270 at the top left by default). SteamVR keeps a play area per
+      tracking universe and has none for the null headset's, so it would open Room Setup at
+      every start: `hmd on` also adds a 2 x 2 m standing play area for that universe to
+      chaperone_info.vrchap (after a snapshot), and `hmd off` takes it out again.
+  hmd off       Restore the snapshots, remove the virtual controllers, restart SteamVR.
   hmd status    Which headset SteamVR uses, and whether a virtual-headset snapshot is pending.
   hmd run [--with-driver] -- CMD ...
       hmd on, run CMD, hmd off, also when CMD fails or is interrupted (exit code: CMD's).
@@ -21,7 +24,7 @@ import subprocess
 import sys
 
 from .. import output
-from ..core import driver, host, settings, steamvr
+from ..core import chaperone, driver, host, settings, steamvr
 
 NAME = "hmd"
 HELP = "a virtual headset (the null driver) for unattended checks, with a snapshot and restore"
@@ -59,6 +62,8 @@ def switch_on(window: list[int], with_driver: bool) -> None:
         raise RuntimeError("a virtual-headset snapshot is still pending; run `sergulath hmd off` first")
     driver.quit_steamvr()
     settings.apply(changes(window), settings.settings_file(), label=LABEL)
+    # A play area for the null headset's universe, so SteamVR does not open Room Setup.
+    chaperone.ensure_universe(chaperone.NULL_UNIVERSE, label=LABEL)
     if with_driver:
         driver.register()
     driver.start_steamvr()
@@ -66,29 +71,39 @@ def switch_on(window: list[int], with_driver: bool) -> None:
         driver.wait_loaded()
 
 
-def switch_off() -> list:
+def switch_off() -> tuple[list, list[dict]]:
+    """Restore the real headset; return the settings and the chaperone universes put back."""
     driver.quit_steamvr()
     undone = []
     snapshot = settings.latest_snapshot(label=LABEL)
     if snapshot:
         undone = settings.restore(snapshot)
+    universes = [chaperone.restore_universe(p) for p in reversed(chaperone.universe_pending(label=LABEL))]
     if driver.is_registered():
         driver.unregister()
     driver.start_steamvr()
-    return undone
+    return undone, universes
 
 
 def _headset() -> dict:
+    universe_snapshots = chaperone.universe_pending(label=LABEL)
     record = {"pending_snapshot": str(settings.latest_snapshot(label=LABEL) or "") or None,
-              "forced_driver": None, "headset": None}
+              "pending_chaperone_snapshot": str(universe_snapshots[-1]) if universe_snapshots else None,
+              "forced_driver": None, "headset": None, "universe": None, "calibration": None}
     value = settings.get(settings.read(), "steamvr.forcedDriver")
     record["forced_driver"] = None if value == settings.MISSING else value
     if not steamvr.missing_processes():
         with steamvr.background_client() as openvr:
             system = openvr.VRSystem()
-            if system.isTrackedDeviceConnected(openvr.k_unTrackedDeviceIndex_Hmd):
-                record["headset"] = system.getStringTrackedDeviceProperty(
-                    openvr.k_unTrackedDeviceIndex_Hmd, openvr.Prop_TrackingSystemName_String)
+            hmd = openvr.k_unTrackedDeviceIndex_Hmd
+            if system.isTrackedDeviceConnected(hmd):
+                record["headset"] = system.getStringTrackedDeviceProperty(hmd, openvr.Prop_TrackingSystemName_String)
+                try:
+                    record["universe"] = str(system.getUint64TrackedDeviceProperty(hmd, openvr.Prop_CurrentUniverseId_Uint64))
+                except Exception:  # noqa: BLE001 - pyopenvr raises when the headset does not report one
+                    pass
+                state = int(openvr.VRChaperone().getCalibrationState())
+                record["calibration"] = chaperone.CALIBRATION.get(state, str(state))
     return record
 
 
@@ -103,13 +118,18 @@ def run(args) -> int:
     if args.action == "on":
         switch_on(args.window, args.with_driver)
         record = _headset()
-        output.emit(record, f"headset: {record['headset']}", args.format)
+        if record["headset"] == "null" and record["universe"] not in (None, chaperone.NULL_UNIVERSE):
+            output.note(f"the null headset reports universe {record['universe']}, not {chaperone.NULL_UNIVERSE}: "
+                        "SteamVR may open Room Setup (the play area went to the wrong universe)")
+        output.emit(record, f"headset: {record['headset']}; universe {record['universe']}, "
+                            f"calibration {record['calibration']}", args.format)
         return output.OK if record["headset"] == "null" else output.FAILED
     if args.action == "off":
-        undone = switch_off()
+        undone, universes = switch_off()
         record = _headset()
-        output.emit({**record, "restored": [c.to_dict() for c in undone]},
-                    f"restored {len(undone)} settings; headset: {record['headset'] or 'none'}", args.format)
+        output.emit({**record, "restored": [c.to_dict() for c in undone], "restored_universes": universes},
+                    f"restored {len(undone)} settings and {sum(u['removed'] for u in universes)} chaperone "
+                    f"universe(s); headset: {record['headset'] or 'none'}", args.format)
         return output.OK
     # run
     command = args.command

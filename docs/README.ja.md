@@ -135,7 +135,7 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 | `sergulath driver build` / `register` / `unregister` / `run` / `status` | 仮想コントローラーのドライバー（左手と右手を出す OpenVR のドライバー）。確認のあいだだけ登録する。[オーバーレイを押す](#オーバーレイを押す)を参照 | 2（試作。前倒し） |
 | `sergulath controller connect` / `pose` / `button` / `dashboard` | 仮想コントローラーを動かし、ボタンを押す。`pose --show KEY` は、手首のオーバーレイがヘッドセットの正面に来るように手を置く。`dashboard close` は、アプリへのボタンを止める SteamVR のダッシュボードを閉じる | 2（試作） |
 | `sergulath overlay press` | オーバーレイの実際の位置と大きさから、仮想コントローラーのレーザーを指定の場所に向けてトリガーを押す | 2（試作） |
-| `sergulath hmd on` / `off` / `run` / `status` | 人がかぶらない確認のための仮想のヘッドセット（SteamVR に同梱の null ドライバー）。変える設定の写しを取り、失敗したときも元に戻す | 2（試作） |
+| `sergulath hmd on` / `off` / `run` / `status` | 人がかぶらない確認のための仮想のヘッドセット（SteamVR に同梱の null ドライバー）。変える設定の写しを取り、失敗したときも元に戻す。null のヘッドセットの universe に立位のプレイエリアを足すので、SteamVR はルームセットアップを開かない。このプレイエリアは `hmd off` で取り除く | 2（試作） |
 | `sergulath asr serve` | speech.cpp の代わりのサーバー（モデルの一覧と Realtime の WebSocket）。決めた文を話者のラベル付きで送り、モデルも音もなしにアプリの字幕の経路を確かめられる。[docs/checks/speaker-names.md](docs/checks/speaker-names.md) を参照 | 2（試作） |
 | `sergulath audio devices` / `check` | 音声デバイスを数秒聞き、音量（RMS とピーク、dBFS）としきい値を超えた長さを出す。再生デバイスはループバックで読む（マイクの許可は要らない）。録音デバイスは `--allow-input` のときだけ。[docs/checks/tts-virtual-mic.md](checks/tts-virtual-mic.md) を参照 | 2（済み） |
 | `sergulath tts serve` | speech.cpp の代わりのサーバー。読み上げの依頼に音（または WAV）で答え、モデルなしでアプリの音声の経路を確かめられる | 2（済み） |

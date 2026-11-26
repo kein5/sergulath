@@ -1,7 +1,8 @@
 """Press buttons and check boxes in a desktop app through Windows UI Automation, by their accessible names.
 
 Runs Windows PowerShell's built-in UIAutomationClient, so no Python package is needed. Each
-step waits for its button, then uses the first pattern the button offers: Invoke, Toggle or
+step waits for its control (a button, check box, radio button, tab or text field), then uses the
+first pattern it offers: Invoke, Toggle, SelectionItem (select; radio buttons and tabs) or
 ExpandCollapse (expand only). Nothing here moves the mouse or takes the foreground.
 """
 
@@ -31,6 +32,8 @@ if (-not $win) { @{ ok = $false; error = "window not found"; steps = @() } | Con
 $buttons = New-Object Windows.Automation.OrCondition(
   (New-Object Windows.Automation.PropertyCondition($A::ControlTypeProperty, [Windows.Automation.ControlType]::Button)),
   (New-Object Windows.Automation.PropertyCondition($A::ControlTypeProperty, [Windows.Automation.ControlType]::CheckBox)),
+  (New-Object Windows.Automation.PropertyCondition($A::ControlTypeProperty, [Windows.Automation.ControlType]::RadioButton)),
+  (New-Object Windows.Automation.PropertyCondition($A::ControlTypeProperty, [Windows.Automation.ControlType]::TabItem)),
   (New-Object Windows.Automation.PropertyCondition($A::ControlTypeProperty, [Windows.Automation.ControlType]::Edit)))
 function Find-Button($name, $prefix) {
   foreach ($b in $win.FindAll([Windows.Automation.TreeScope]::Descendants, $buttons)) {
@@ -56,6 +59,10 @@ foreach ($s in $req.steps) {
   }
   if ($el.TryGetCurrentPattern([Windows.Automation.InvokePattern]::Pattern, [ref]$p)) { $p.Invoke(); $done = 'invoke' }
   elseif ($el.TryGetCurrentPattern([Windows.Automation.TogglePattern]::Pattern, [ref]$p)) { $p.Toggle(); $done = 'toggle' }
+  elseif ($el.TryGetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern, [ref]$p)) {
+    # Radio buttons and tabs: selecting one that is already selected changes nothing.
+    if ($p.Current.IsSelected) { $done = 'already selected' } else { $p.Select(); $done = 'select' }
+  }
   elseif ($el.TryGetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern, [ref]$p)) {
     if ($p.Current.ExpandCollapseState -ne 'Expanded') { $p.Expand(); $done = 'expand' } else { $done = 'already expanded' }
   } else { $results += @{ name = $s.name; ok = $false; done = 'no usable pattern' }; break }

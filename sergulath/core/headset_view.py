@@ -25,9 +25,10 @@ from . import placement
 PROBE_KEY = "sergulath.headset-view.probe"
 PROBE_COLOUR = (255, 0, 255)
 PROBE_WIDTH_M = 0.08
-# Two spots in front of the head (metres, head space): far enough apart for a good scale, close
-# enough to the centre to stay inside both eyes.
+# Two spots in front of the head (head space, for a probe 1 m away; scaled with its depth): far
+# enough apart for a good scale, close enough to the centre to stay inside both eyes.
 PROBE_SPOTS = ((0.0, 0.0, -1.0), (0.25, 0.2, -1.0))
+PROBE_DEPTHS = (1.0, 0.2)  # farthest and nearest the probe goes
 
 Matrix = placement.Matrix
 
@@ -161,15 +162,44 @@ def solve(spots_uv: dict, spots_px: dict) -> dict:
     return maps
 
 
-def calibrate(openvr, capture, settle: float = 1.0) -> dict:
-    """Show the probe at PROBE_SPOTS, find it in `capture()` (width, height, rgba), return the eye maps."""
+def probe_depth(head_distance_m: float | None) -> float:
+    """How far in front of the head to show the probe: in front of the overlay being cut out.
+
+    SteamVR draws a nearer overlay over a farther one whatever their sort orders, so a probe at
+    1 m behind a panel at 0.7 m (ASTAROT2, the VR panel) never shows in the window (found 0
+    times, 2026-11-26). Half the overlay's distance, between 0.2 m and 1 m."""
+    if not head_distance_m or head_distance_m <= 0:
+        return PROBE_DEPTHS[0]
+    return max(PROBE_DEPTHS[-1], min(PROBE_DEPTHS[0], head_distance_m / 2))
+
+
+def calibrate(openvr, capture, settle: float = 1.0, depth: float | None = None) -> dict:
+    """Show the probe at PROBE_SPOTS (scaled to `depth` metres), find it in `capture()` (width,
+    height, rgba), return the eye maps. When something nearer hides it, try once more at the
+    nearest depth."""
+    depths = [depth or PROBE_DEPTHS[0]]
+    if depths[0] > PROBE_DEPTHS[-1]:
+        depths.append(PROBE_DEPTHS[-1])
+    for i, d in enumerate(depths):
+        try:
+            return _calibrate_at(openvr, capture, settle, d)
+        except ProbeNotFound:
+            if i == len(depths) - 1:
+                raise
+
+
+class ProbeNotFound(RuntimeError):
+    pass
+
+
+def _calibrate_at(openvr, capture, settle: float, depth: float) -> dict:
     overlay = openvr.VROverlay()
     handle = overlay.createOverlay(PROBE_KEY, "SERGULATH probe")
     try:
         size = 16
         pixels = (ctypes.c_uint8 * (size * size * 4))(*([*PROBE_COLOUR, 255] * size * size))
         overlay.setOverlayRaw(handle, pixels, size, size, 4)
-        overlay.setOverlayWidthInMeters(handle, PROBE_WIDTH_M)
+        overlay.setOverlayWidthInMeters(handle, PROBE_WIDTH_M * depth)  # the same angular size at any depth
         overlay.setOverlaySortOrder(handle, 1000)
         overlay.showOverlay(handle)
         system = openvr.VRSystem()
@@ -178,7 +208,7 @@ def calibrate(openvr, capture, settle: float = 1.0) -> dict:
                 for name, eye in (("left", openvr.Eye_Left), ("right", openvr.Eye_Right))}
         uv = {"left": [], "right": []}
         px = {"left": [], "right": []}
-        for spot in PROBE_SPOTS:
+        for spot in [tuple(c * depth for c in s) for s in PROBE_SPOTS]:
             m = openvr.HmdMatrix34_t()
             for i in range(3):
                 m.m[i][i] = 1.0
@@ -188,7 +218,8 @@ def calibrate(openvr, capture, settle: float = 1.0) -> dict:
             width, height, rgba = capture()
             clusters = find_colour(width, height, rgba)
             if len(clusters) != 2:
-                raise RuntimeError(f"the calibration probe was found {len(clusters)} time(s), not once per eye")
+                raise ProbeNotFound(f"the calibration probe ({depth:.2f} m in front of the head) was found "
+                                    f"{len(clusters)} time(s), not once per eye")
             clusters.sort(key=lambda c: centre(c)[0])
             for eye, cluster in zip(("left", "right"), clusters):
                 eye_from_head, raw = eyes[eye]

@@ -136,7 +136,12 @@ def _save_overlay(args, window) -> int:
                         "or is not placed in the room)")
             return output.NOT_MET
         width_m, height_m = headset_view.overlay_size(openvr, overlay, handle)
-        maps = headset_view.calibrate(openvr, capture)
+        head = openvr.VRSystem().getDeviceToAbsoluteTrackingPose(openvr.TrackingUniverseStanding, 0, 1)[0]
+        head_distance = placement.distance(placement.translation(world),
+                                           placement.translation(placement.to_rows(head.mDeviceToAbsoluteTracking))) \
+            if head.bPoseIsValid else None
+        # The probe goes in front of the overlay: a nearer overlay hides a farther one.
+        maps = headset_view.calibrate(openvr, capture, depth=headset_view.probe_depth(head_distance))
         time.sleep(1.0)  # the window shows the probe for a few frames after it is destroyed
         eye_from_world, raw = headset_view.eye_views(openvr)[args.eye]
         width, height, rgba = capture()

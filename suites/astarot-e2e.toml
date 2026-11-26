@@ -28,6 +28,9 @@
 
 [suite]
 name = "astarot-e2e"
+# After a case that failed or errored: back to the main page (stop a caption sample still
+# sending, leave the settings page), so the next cases do not fail one after another.
+reset = [["sergulath", "app", "home"]]
 setup = [
     ["sergulath", "app", "stop"],
     ["sergulath", "app", "start", "--settings-dir", "records/suite/app", "--fresh"],

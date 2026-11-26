@@ -14,6 +14,13 @@
   app press NAME [NAME ...] [--prefix]
                                    Press buttons or check boxes in its main window, in order, by
                                    accessible name (Windows UI Automation; no mouse, no focus).
+  app home [--lang ja]             Bring it back to its main page: stop a caption sample that is
+                                   still sending, press "back" while there is one, and check that
+                                   the main page's settings button is there (the profile's
+                                   [ui.LANG] labels). A suite runs it after a failed case, so a
+                                   case that stopped half-way on the settings page does not take
+                                   the next cases down with it. Exit 1 when the main page is not
+                                   reached.
 
 Pressing can change the app's settings: do it on an app started with --settings-dir.
 """
@@ -54,11 +61,23 @@ def add_arguments(parser) -> None:
     press.add_argument("--prefix", action="store_true", help="match names that start with each NAME")
     press.add_argument("--timeout", type=float, default=8.0, help="seconds to wait for each control (default 8)")
     output.add_format(press)
+    home = sub.add_parser("home", help="bring the app back to its main page (a suite's reset between cases)")
+    home.add_argument("--lang", default="ja", help="the app's UI language in the profile (default ja)")
+    output.add_format(home)
     typing = sub.add_parser("type", help="set the text of a field by its accessible name")
     typing.add_argument("--field", required=True, help="the field's accessible name")
     typing.add_argument("--text", required=True)
     typing.add_argument("--then", action="append", default=[], metavar="NAME", help="press this button after (repeatable)")
     output.add_format(typing)
+
+
+def home_steps(labels: dict) -> list:
+    """Back to the main page from wherever a case stopped: every press is optional, then the main
+    page's settings button must be there. Two "back" presses cover a page opened from a page."""
+    return [uia.Step(labels["sample_stop"], optional=True, timeout=0.5),
+            uia.Step(labels["back"], optional=True, timeout=1.5),
+            uia.Step(labels["back"], optional=True, timeout=0.5),
+            uia.Step(labels["open_settings"], check_only=True, timeout=5)]
 
 
 def pids(process: str) -> list[int]:
@@ -97,8 +116,18 @@ def run(args) -> int:
         output.emit({"stopped": before, "running": left}, f"stopped {len(before)}" + (f"; still running {left}" if left else ""),
                     args.format)
         return output.FAILED if left else output.OK
-    if args.action in ("press", "type"):
+    if args.action in ("press", "type", "home"):
         host.require_windows(f"app {args.action}", uia.WINDOWS_ONLY)
+    if args.action == "home":
+        labels = profile.get("ui", {}).get(args.lang)
+        if not labels:
+            output.note(f"the profile has no [ui.{args.lang}] labels")
+            return output.USAGE
+        pid = app_core.show_main_window(info)
+        result = uia.press(pid, info["main_window_title"], home_steps(labels))
+        output.emit(result, "on the main page" if result.get("ok") else f"not back on the main page: {result}",
+                    args.format)
+        return output.OK if result.get("ok") else output.NOT_MET
     if args.action == "press":
         pid = app_core.show_main_window(info)
         result = uia.press(pid, info["main_window_title"],

@@ -8,6 +8,8 @@ A case file:
     # interrupted (teardown always). Each entry is one command line.
     setup = [["sergulath", "hmd", "on", "--with-driver"]]
     teardown = [["sergulath", "hmd", "off"]]
+    # Run after every case that failed or errored, to put the app back in a known state.
+    reset = [["sergulath", "app", "home"]]
 
     [[case]]
     id = "S-01"
@@ -81,6 +83,7 @@ class Suite:
     setup: list[list[str]] = field(default_factory=list)
     teardown: list[list[str]] = field(default_factory=list)
     phases: dict[str, Phase] = field(default_factory=dict)
+    reset: list[list[str]] = field(default_factory=list)  # after a case that failed or errored
 
 
 @dataclass
@@ -134,7 +137,8 @@ def load(path: Path) -> Suite:
         if case.phase and case.phase not in phases:
             raise CaseFileError(f"case {case.id} names an unknown phase {case.phase!r}")
     return Suite(name=head.get("name", path.stem), cases=cases,
-                 setup=head.get("setup", []), teardown=head.get("teardown", []), phases=phases)
+                 setup=head.get("setup", []), teardown=head.get("teardown", []), phases=phases,
+                 reset=head.get("reset", []))
 
 
 def command(argv: list[str]) -> list[str]:
@@ -298,7 +302,14 @@ def run_suite(suite: Suite, only: list[str] | None = None, on_result=None, log=N
             if runnable(case) and case.phase and case.phase == failed_phase:
                 report(CaseResult(case.id, case.title, case.group, ERROR, f"setup of {case.phase} failed"))
                 continue
-            report(run_case(case, log, slow))
+            result = run_case(case, log, slow)
+            if result.status in (FAIL, ERROR) and suite.reset:
+                # Put the app back in a known state, so a case that stopped half-way (on a
+                # settings page, say) does not take the next cases down with it.
+                problem = _run_all(suite.reset, log)
+                if problem:
+                    problems.append(f"reset after {case.id}: {problem}")
+            report(result)
     finally:
         if active:
             problem = _run_all(suite.phases[active].teardown, log)

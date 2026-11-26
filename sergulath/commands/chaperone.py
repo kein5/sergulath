@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 
 from .. import output
-from ..core import chaperone, driver, steamvr
+from ..core import chaperone, driver, lock, steamvr
 
 NAME = "chaperone"
 HELP = "show the play area, change it with a snapshot, and restore it"
@@ -78,6 +78,7 @@ def _apply(args) -> int:
                         "use `sergulath hmd on` or pass --real-headset")
             return output.FAILED
         snapshot = chaperone.snapshot(openvr)
+        lock.hold("chaperone", snapshot)  # until `chaperone restore`
         width, depth = args.size
         try:
             chaperone.apply(openvr, width, depth, args.walls)
@@ -105,6 +106,7 @@ def _restore(args) -> int:
     now = path.read_text(encoding="utf-8") if path.is_file() else None
     same = chaperone.universes(now) == chaperone.universes(kept["content"])
     done = chaperone.mark_restored(snapshot)
+    lock.unhold("chaperone")
     output.emit({"file": str(path), "snapshot": str(done), "matches_snapshot": same},
                 f"{path} written back from {snapshot.name}; SteamVR restarted; "
                 + ("same as the snapshot" if same else "DIFFERS from the snapshot"), args.format)

@@ -81,6 +81,30 @@ def write(data: dict, path: Path) -> None:
     temporary.replace(path)
 
 
+# Values only a virtual headset puts there (`hmd on`: the null driver; driver_asvr when tried). A
+# snapshot whose "before" holds one was taken while a virtual headset was already on (another
+# session's `hmd on`, or one that never finished): restoring it would put the virtual headset
+# back while saying "restored". Such a snapshot is marked and refused by `restore`.
+VIRTUAL_HEADSET = {"steamvr.forcedDriver": ("null", "asvr"), "driver_null.enable": (True,)}
+
+
+class SuspectSnapshot(RuntimeError):
+    pass
+
+
+def virtual_keys(values: dict) -> list[str]:
+    """The keys of {key: value} that hold a virtual headset's value."""
+    return [k for k, v in values.items() if k in VIRTUAL_HEADSET and v in VIRTUAL_HEADSET[k]]
+
+
+def virtual_now(data: dict) -> list[str]:
+    return virtual_keys({k: get(data, k) for k in VIRTUAL_HEADSET})
+
+
+def virtual_before(record: dict) -> list[str]:
+    return virtual_keys({c["key"]: c["before"] for c in record.get("changes", [])})
+
+
 def apply(changes: dict, path: Path, snapshot_dir: Path | None = None, label: str = "") -> tuple[list[Change], Path]:
     """Write a snapshot, then the new values. Returns the changes and the snapshot file."""
     snapshot_dir = snapshot_dir or SNAPSHOTS
@@ -88,8 +112,11 @@ def apply(changes: dict, path: Path, snapshot_dir: Path | None = None, label: st
     done = [Change(key, get(data, key), value) for key, value in changes.items()]
     snapshot_dir.mkdir(parents=True, exist_ok=True)
     snapshot = snapshot_dir / (time.strftime("%Y%m%dT%H%M%S") + (f"-{label}" if label else "") + ".json")
-    snapshot.write_text(json.dumps({"file": str(path), "taken": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-                                    "changes": [c.to_dict() for c in done]}, indent=2), encoding="utf-8")
+    record = {"file": str(path), "taken": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "changes": [c.to_dict() for c in done]}
+    suspect = virtual_before(record)
+    if suspect:
+        record["virtual_before"] = suspect
+    snapshot.write_text(json.dumps(record, indent=2), encoding="utf-8")
     for change in done:
         put(data, change.key, change.after)
     write(data, path)
@@ -101,8 +128,39 @@ def latest_snapshot(snapshot_dir: Path | None = None, label: str = "") -> Path |
     return found[-1] if found else None
 
 
-def restore(snapshot: Path) -> list[Change]:
+def clean_restored(label: str, snapshot_dir: Path | None = None) -> Path | None:
+    """The newest restored snapshot with this label whose "before" has no virtual headset values:
+    the one to restore from when the pending one is suspect."""
+    snapshot_dir = snapshot_dir or SNAPSHOTS
+    found = sorted(snapshot_dir.glob(f"*-{label}.restored.json"))
+    for path in reversed(found):
+        try:
+            if not virtual_before(json.loads(path.read_text(encoding="utf-8"))):
+                return path
+        except (OSError, ValueError):
+            continue
+    return None
+
+
+def check_restorable(snapshot: Path) -> None:
+    """Raise SuspectSnapshot when the snapshot's "before" holds a virtual headset's values."""
+    record = json.loads(snapshot.read_text(encoding="utf-8"))
+    suspect = virtual_before(record)
+    if suspect:
+        label = snapshot.stem.removesuffix(".restored").rpartition("-")[2] if "-" in snapshot.stem else ""
+        clean = clean_restored(label, snapshot.parent) if label else None
+        hint = (f"`sergulath settings restore --snapshot {clean}` puts back the values from before the "
+                "virtual headset" if clean else "set those keys back by hand (`sergulath settings show`)")
+        raise SuspectSnapshot(
+            f"{snapshot.name} was taken while a virtual headset was already on ({', '.join(suspect)} held "
+            f"its value before): restoring it would keep the virtual headset. Not restored; {hint}. "
+            "To restore it anyway: `sergulath settings restore --snapshot FILE --allow-virtual-before`")
+
+
+def restore(snapshot: Path, allow_virtual_before: bool = False) -> list[Change]:
     """Put back the keys a snapshot recorded, and mark the snapshot as restored."""
+    if not allow_virtual_before:
+        check_restorable(snapshot)
     record = json.loads(snapshot.read_text(encoding="utf-8"))
     path = Path(record["file"])
     data = read(path)

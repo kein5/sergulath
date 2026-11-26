@@ -24,7 +24,7 @@ import subprocess
 import sys
 
 from .. import output
-from ..core import chaperone, driver, host, settings, steamvr
+from ..core import chaperone, driver, host, lock, settings, steamvr
 
 NAME = "hmd"
 HELP = "a virtual headset (the null driver) for unattended checks, with a snapshot and restore"
@@ -60,8 +60,19 @@ def switch_on(window: list[int], with_driver: bool) -> None:
         host.require_windows("--with-driver", driver.WINDOWS_ONLY)
     if settings.latest_snapshot(label=LABEL):
         raise RuntimeError("a virtual-headset snapshot is still pending; run `sergulath hmd off` first")
+    already = settings.virtual_now(settings.read())
+    if already:
+        # A snapshot taken now would record the virtual headset as "before", and `hmd off` would
+        # put it back while saying "restored". Someone else's `hmd on`, or one that never finished.
+        clean = settings.clean_restored(LABEL)
+        raise RuntimeError(
+            f"SteamVR is already set to a virtual headset ({', '.join(already)}) with no `hmd on` snapshot "
+            "pending here: another checkout's `hmd on`, or one that did not finish. Nothing was changed. "
+            "Run `sergulath hmd off` where it was turned on"
+            + (f", or `sergulath settings restore --snapshot {clean}`" if clean else "") + ", then try again")
     driver.quit_steamvr()
-    settings.apply(changes(window), settings.settings_file(), label=LABEL)
+    _, snapshot = settings.apply(changes(window), settings.settings_file(), label=LABEL)
+    lock.hold(LABEL, snapshot)  # other sessions keep off SteamVR until `hmd off` restores this
     # A play area for the null headset's universe, so SteamVR does not open Room Setup.
     chaperone.ensure_universe(chaperone.NULL_UNIVERSE, label=LABEL)
     if with_driver:
@@ -73,15 +84,18 @@ def switch_on(window: list[int], with_driver: bool) -> None:
 
 def switch_off() -> tuple[list, list[dict]]:
     """Restore the real headset; return the settings and the chaperone universes put back."""
+    snapshot = settings.latest_snapshot(label=LABEL)
+    if snapshot:
+        settings.check_restorable(snapshot)  # before SteamVR stops: a suspect snapshot changes nothing
     driver.quit_steamvr()
     undone = []
-    snapshot = settings.latest_snapshot(label=LABEL)
     if snapshot:
         undone = settings.restore(snapshot)
     universes = [chaperone.restore_universe(p) for p in reversed(chaperone.universe_pending(label=LABEL))]
     if driver.is_registered():
         driver.unregister()
     driver.start_steamvr()
+    lock.unhold(LABEL)
     return undone, universes
 
 

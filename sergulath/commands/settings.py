@@ -22,7 +22,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .. import output
-from ..core import driver, settings, steamvr
+from ..core import driver, lock, settings, steamvr
 
 NAME = "settings"
 HELP = "show SteamVR settings, change them with a snapshot, and restore them"
@@ -40,6 +40,9 @@ def add_arguments(parser) -> None:
     restore = sub.add_parser("restore", help="put back a snapshot's keys")
     restore.add_argument("--snapshot", help="snapshot file (default: the latest not restored)")
     restore.add_argument("--restart", action="store_true", help="stop SteamVR first and start it after")
+    restore.add_argument("--allow-virtual-before", action="store_true",
+                         help="restore even a snapshot taken while a virtual headset was on (its before holds "
+                              "forcedDriver null); refused otherwise")
     output.add_format(restore)
     pending = sub.add_parser("pending", help="snapshots not restored yet")
     output.add_format(pending)
@@ -77,6 +80,18 @@ def run(args) -> int:
         for path in found:
             output.emit({"snapshot": str(path)}, str(path), args.format)
         return output.OK if found else output.NOT_MET
+    snapshot = None
+    if args.action == "restore":  # find and check it before SteamVR is stopped
+        snapshot = Path(args.snapshot) if args.snapshot else settings.latest_snapshot()
+        if snapshot is None:
+            output.note("no snapshot to restore")
+            return output.NOT_MET
+        if not args.allow_virtual_before:
+            try:
+                settings.check_restorable(snapshot)
+            except settings.SuspectSnapshot as e:
+                output.note(str(e))
+                return output.FAILED
     if not _guard_running(args.restart):
         return output.FAILED
     if args.action == "set":
@@ -88,13 +103,10 @@ def run(args) -> int:
             output.note(str(e))
             return output.USAGE
         done, snapshot = settings.apply(changes, settings.settings_file())
+        lock.hold(f"settings {snapshot.name}", snapshot)  # until `settings restore` puts it back
         _emit_changes(done, args.format, snapshot)
     else:
-        snapshot = Path(args.snapshot) if args.snapshot else settings.latest_snapshot()
-        if snapshot is None:
-            output.note("no snapshot to restore")
-            return output.NOT_MET
-        _emit_changes(settings.restore(snapshot), args.format, snapshot)
+        _emit_changes(settings.restore(snapshot, allow_virtual_before=True), args.format, snapshot)
     if args.restart:
         driver.start_steamvr()
     return output.OK

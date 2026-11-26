@@ -157,6 +157,94 @@ def universes(text: str | None) -> dict:
     return found
 
 
+# ---- a calibrated universe for the virtual headset -------------------------------------------
+#
+# SteamVR keeps one play area per tracking universe (chaperone_info.vrchap, keyed by the headset's
+# Prop_CurrentUniverseId). The null driver reports universe 2 and SteamVR has no play area for it,
+# so every start with the virtual headset is uncalibrated (calibration state 201,
+# error_base_station_uninitialized) and SteamVR opens Room Setup ("Welcome to Room Setup!").
+# `hmd on` adds a standing play area for that universe while SteamVR is stopped, and `hmd off`
+# takes it out again, so the file ends as it began. A Steam Frame brings its own universe
+# (424242, from the headset over Steam Link), which this never touches.
+
+NULL_UNIVERSE = "2"  # the null driver's Prop_CurrentUniverseId_Uint64 (SteamVR 2.19.5, 2026-11-26)
+UNIVERSE_SNAPSHOTS = SNAPSHOTS / "universe"  # apart from `chaperone apply`'s whole-file snapshots
+PLAY_AREA = (2.0, 2.0)  # metres; standing at the raw origin, where the null headset sits
+
+
+def standing_universe(universe_id: str, width: float = PLAY_AREA[0], depth: float = PLAY_AREA[1],
+                      height: float = WALL_HEIGHT) -> dict:
+    """A universe as Room Setup writes it: standing and seated at the raw origin, a width x depth
+    play area centred there, and four walls around it."""
+    x, z = width / 2, depth / 2
+    floor = [(-x, -z), (x, -z), (x, z), (-x, z)]
+    bounds = []
+    for i in range(4):
+        (ax, az), (bx, bz) = floor[i], floor[(i + 1) % 4]
+        bounds.append([[ax, 0, az], [bx, 0, bz], [bx, height, bz], [ax, height, az]])
+    return {"collision_bounds": bounds, "play_area": [width, depth],
+            "seated": {"translation": [0, 0, 0], "yaw": 0}, "standing": {"translation": [0, 0, 0], "yaw": 0},
+            "time": time.strftime("%a %b %d %H:%M:%S %Y"), "universeID": universe_id}
+
+
+def _read_file(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else \
+        {"jsonid": "chaperone_info", "universes": [], "version": 5}
+
+
+def _write_file(path: Path, data: dict) -> None:
+    temporary = path.with_suffix(".sergulath-tmp")
+    temporary.write_text(json.dumps(data, indent=3) + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
+def ensure_universe(universe_id: str = NULL_UNIVERSE, path: Path | None = None, snapshot_dir: Path | None = None,
+                    label: str = "hmd") -> Path:
+    """Give `universe_id` a standing play area unless the file has one. SteamVR must be stopped.
+
+    Writes a snapshot first (whether the file existed, and the universe's entry before) and
+    returns it; `restore_universe` puts back exactly that."""
+    path = path or chaperone_file()
+    snapshot_dir = snapshot_dir or UNIVERSE_SNAPSHOTS
+    snapshot_dir.mkdir(parents=True, exist_ok=True)
+    existed = path.is_file()
+    data = _read_file(path)
+    before = next((u for u in data.get("universes", []) if str(u.get("universeID")) == universe_id), None)
+    out = snapshot_dir / (time.strftime("%Y%m%dT%H%M%S") + (f"-{label}" if label else "") + ".json")
+    out.write_text(json.dumps({"taken": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "file": str(path),
+                               "file_existed": existed, "universe": universe_id, "before": before,
+                               "added": before is None}, indent=2), encoding="utf-8")
+    if before is None:
+        data.setdefault("universes", []).append(standing_universe(universe_id))
+        _write_file(path, data)
+    return out
+
+
+def restore_universe(snapshot: Path) -> dict:
+    """Undo `ensure_universe`: take out the universe it added (or the file it created).
+    SteamVR must be stopped. Returns what was done and marks the snapshot restored."""
+    record = json.loads(snapshot.read_text(encoding="utf-8"))
+    path, universe_id = Path(record["file"]), record["universe"]
+    done = {"universe": universe_id, "removed": False, "file_removed": False}
+    if record.get("added") and path.is_file():
+        data = _read_file(path)
+        kept = [u for u in data.get("universes", []) if str(u.get("universeID")) != universe_id]
+        done["removed"] = len(kept) != len(data.get("universes", []))
+        if not kept and not record.get("file_existed"):
+            path.unlink()
+            done["file_removed"] = True
+        else:
+            data["universes"] = kept
+            _write_file(path, data)
+    mark_restored(snapshot)
+    return done
+
+
+def universe_pending(snapshot_dir: Path | None = None, label: str = "") -> list[Path]:
+    found = pending(snapshot_dir or UNIVERSE_SNAPSHOTS)
+    return [p for p in found if not label or p.stem.endswith(f"-{label}")]
+
+
 def pending(snapshot_dir: Path | None = None) -> list[Path]:
     snapshot_dir = snapshot_dir or SNAPSHOTS
     return sorted(p for p in snapshot_dir.glob("*.json") if not p.name.endswith(".restored.json"))

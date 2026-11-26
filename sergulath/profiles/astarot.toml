@@ -48,6 +48,12 @@ sample_start = "サンプルの文を字幕オーバーレイに送る"
 sample_stop = "送信を停止"
 back = "戻る"
 
+# How GetOverlayImageData hands back each overlay's pixels (for `overlay --save`). The captions
+# are raw RGBA (SetOverlayRaw); the VR panel, the launcher and the popup share one D3D11 texture
+# in DXGI_FORMAT_B8G8R8A8 (native/vr-overlay, set_shared_texture), read back as BGRA.
+[overlay_pixels]
+bgra = ["ASTAROT2", "ASTAROT3", "ASTAROT4"]
+
 # Overlay keys, in the app's order (native/vr-overlay, Surface::ALL).
 # 0.6 and later: ASTAROT0..4. Up to 0.5.x the keys were VRCT0..4.
 [overlays]

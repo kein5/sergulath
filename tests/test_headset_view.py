@@ -99,3 +99,40 @@ class SizeTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ProbeDepthTest(unittest.TestCase):
+    """2026-11-26: with the VR panel (ASTAROT2) open 0.7 m in front, a probe at 1 m was hidden
+    behind it (found 0 times), whatever the sort order. The probe now goes in front."""
+
+    def test_half_the_overlays_distance_within_limits(self):
+        self.assertEqual(hv.probe_depth(0.707), 0.3535)
+        self.assertEqual(hv.probe_depth(3.0), 1.0)
+        self.assertEqual(hv.probe_depth(0.1), 0.2)
+        self.assertEqual(hv.probe_depth(None), 1.0)
+
+    def test_a_hidden_probe_is_tried_again_at_the_nearest_depth(self):
+        from unittest import mock
+
+        tried = []
+
+        def at(openvr, capture, settle, depth):
+            tried.append(depth)
+            if depth > 0.2:
+                raise hv.ProbeNotFound("found 0 time(s)")
+            return {"left": "map"}
+
+        with mock.patch.object(hv, "_calibrate_at", at):
+            self.assertEqual(hv.calibrate(None, None, depth=0.5), {"left": "map"})
+        self.assertEqual(tried, [0.5, 0.2])
+
+    def test_at_the_nearest_depth_the_failure_is_reported(self):
+        from unittest import mock
+
+        def at(openvr, capture, settle, depth):
+            raise hv.ProbeNotFound(f"probe ({depth:.2f} m) found 0 time(s)")
+
+        with mock.patch.object(hv, "_calibrate_at", at):
+            with self.assertRaises(hv.ProbeNotFound) as caught:
+                hv.calibrate(None, None, depth=0.2)
+        self.assertIn("0.20 m", str(caught.exception))

@@ -27,6 +27,9 @@ def add_arguments(parser) -> None:
     parser.add_argument("--legacy", action="store_true", help="use the profile's older overlay keys")
     parser.add_argument("--key", action="append", help="overlay key to read instead of the profile's (repeatable)")
     parser.add_argument("--save", metavar="DIR", help="save each overlay's pixels as DIR/<key>.png")
+    parser.add_argument("--pixels", choices=("profile", "rgba", "bgra"), default="profile",
+                        help="byte order of the overlays' images for --save: from the profile's [overlay_pixels] "
+                             "(default), or every key as rgba (SetOverlayRaw) or bgra (a B8G8R8A8 texture)")
     parser.add_argument("--placement", action="store_true",
                         help="also read where each overlay sits: what it follows (headset, which hand, the room), "
                              "its offset, its world position and its distance from the head")
@@ -76,6 +79,14 @@ def _press(args) -> int:
     return output.OK if result.hit else output.NOT_MET
 
 
+def _bgra_keys(args, profile: dict, keys: list[str]) -> set[str]:
+    if args.pixels == "bgra":
+        return set(keys)
+    if args.pixels == "rgba":
+        return set()
+    return set(profile.get("overlay_pixels", {}).get("bgra", []))
+
+
 def run(args) -> int:
     if getattr(args, "action", None) == "press":
         host.require_windows("overlay press", driver.WINDOWS_ONLY)
@@ -85,7 +96,7 @@ def run(args) -> int:
     keys = args.key or list(labels)
     with steamvr.background_client() as openvr:
         states = overlay.capture(openvr, keys, Path(args.save) if args.save else None,
-                                 read_placement=args.placement)
+                                 read_placement=args.placement, bgra_keys=_bgra_keys(args, profile, keys))
     for state in states:
         label = labels.get(state.key, "")
         output.emit({**state.to_dict(), "label": label}, overlay.describe(state, label), args.format)

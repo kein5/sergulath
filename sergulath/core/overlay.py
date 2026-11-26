@@ -35,11 +35,24 @@ class OverlayState:
         return data
 
 
+def bgra_to_rgba(pixels: bytes) -> bytes:
+    data = bytearray(pixels)
+    data[0::4], data[2::4] = data[2::4], data[0::4]
+    return bytes(data)
+
+
 def capture(openvr, keys: list[str], out_dir: Path | None = None, retries: int = 5,
-            read_pixels: bool | None = None, read_placement: bool = False) -> list[OverlayState]:
+            read_pixels: bool | None = None, read_placement: bool = False,
+            bgra_keys: frozenset[str] | set[str] = frozenset()) -> list[OverlayState]:
     """Look up each key. With `read_pixels` (on when `out_dir` is given), count each overlay's
     drawn pixels; with `out_dir`, also save them as `<key>.png`. With `read_placement`, also
-    read where each overlay sits (core.placement)."""
+    read where each overlay sits (core.placement).
+
+    GetOverlayImageData hands back an overlay's pixels in the order its image was given:
+    RGBA for SetOverlayRaw, but the texture's own byte order for SetOverlayTexture, which is
+    BGRA for a DXGI_FORMAT_B8G8R8A8 texture (ASTAROT 0.7's VR panel, launcher and popup). The
+    keys in `bgra_keys` are turned back into RGBA before saving, so the PNG has the colours the
+    headset shows."""
     overlay = openvr.IVROverlay()
     states = []
     poses = None
@@ -80,7 +93,7 @@ def capture(openvr, keys: list[str], out_dir: Path | None = None, retries: int =
                     state.drawn_px = len(alpha) - alpha.count(0)
                     if out_dir:
                         state.image = out_dir / f"{key}.png"
-                        png.write_rgba(state.image, width, height, rgba)
+                        png.write_rgba(state.image, width, height, bgra_to_rgba(rgba) if key in bgra_keys else rgba)
                     state.error = ""
                     break
                 except Exception as e:  # noqa: BLE001 - report and go on with the other overlays

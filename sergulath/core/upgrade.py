@@ -168,6 +168,53 @@ def parse_sha256_text(text: str) -> str:
     return token
 
 
+# A release lists every asset's hash in one file (`sha256sum` format); ASTAROT 0.7 publishes
+# these instead of one `<asset>.sha256` per asset (0.6.0 has both).
+SUMS_FILES = ("SHA256SUMS-windows", "SHA256SUMS")
+
+
+def parse_sha256_sums(text: str, name: str) -> str | None:
+    """The hash of `name` in a `sha256sum` listing ("<hash>  <name>" or "<hash> *<name>"), or None."""
+    for line in text.splitlines():
+        parts = line.strip().split(None, 1)
+        if len(parts) == 2 and parts[1].lstrip("*").strip() == name:
+            return parse_sha256_text(parts[0])
+    return None
+
+
+def _get_text(url: str, timeout: float = 30.0) -> str:
+    req = urllib.request.Request(url, headers={"User-Agent": "SERGULATH-upgrade-check"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return resp.read().decode("utf-8")
+
+
+def expected_sha256_for(url: str, sha256_url: str | None) -> str:
+    """The published SHA-256 of `url`: `sha256_url` (`<asset>.sha256`) when the release has it,
+    else the release's SHA256SUMS-windows (or SHA256SUMS) next to the asset."""
+    problems = []
+    if sha256_url:
+        try:
+            return parse_sha256_text(_get_text(sha256_url))
+        except urllib.error.HTTPError as e:
+            if e.code != 404:
+                raise
+            problems.append(f"{sha256_url.rsplit('/', 1)[-1]}: 404")
+    folder, _, name = url.rpartition("/")
+    for sums in SUMS_FILES:
+        try:
+            text = _get_text(f"{folder}/{sums}")
+        except urllib.error.HTTPError as e:
+            if e.code != 404:
+                raise
+            problems.append(f"{sums}: 404")
+            continue
+        found = parse_sha256_sums(text, name)
+        if found:
+            return found
+        problems.append(f"{sums}: no line for {name}")
+    raise ValueError(f"no published SHA-256 for {name} ({'; '.join(problems)})")
+
+
 def download_verified(
     url: str,
     dest: Path,
@@ -175,12 +222,11 @@ def download_verified(
     expected_sha256: str | None = None,
     timeout: float = 180.0,
 ) -> Path:
-    """Download `url` to `dest` and verify SHA-256 (reusing a cached `dest` whose hash matches)."""
+    """Download `url` to `dest` and verify SHA-256 (reusing a cached `dest` whose hash matches).
+    The hash comes from `expected_sha256`, else `sha256_url`, else the release's SHA256SUMS file."""
     dest.parent.mkdir(parents=True, exist_ok=True)
     if expected_sha256 is None and sha256_url:
-        req = urllib.request.Request(sha256_url, headers={"User-Agent": "SERGULATH-upgrade-check"})
-        with urllib.request.urlopen(req, timeout=30.0) as resp:
-            expected_sha256 = parse_sha256_text(resp.read().decode("utf-8"))
+        expected_sha256 = expected_sha256_for(url, sha256_url)
     if dest.is_file() and expected_sha256 and sha256_file(dest) == expected_sha256.lower():
         return dest
     tmp = dest.with_suffix(dest.suffix + ".part")

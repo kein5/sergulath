@@ -157,6 +157,47 @@ steps = [{{ run = {say("S1")} }}]
             self.assertEqual(problem, "")
             self.assertEqual(log.read_text().split(), ["setup", "R1", "v-on", "V2", "v-off", "teardown"])
 
+    def test_reset_runs_after_a_failed_case_only(self):
+        with tempfile.TemporaryDirectory() as root:
+            log = Path(root) / "log.txt"
+            def say(word):
+                return f'["{PY}", "-c", "open(r\'{str(log).replace(chr(92), chr(92) * 2)}\', \'a\').write(\'{word} \')"]'
+            text = f"""
+[suite]
+name = "reset"
+reset = [{say("reset")}]
+
+[[case]]
+id = "A"
+title = "passes"
+steps = [{{ run = {say("A")} }}]
+
+[[case]]
+id = "B"
+title = "fails half-way"
+steps = [{{ run = {say("B")} }}, {{ run = ["{PY}", "-c", "raise SystemExit(1)"] }}, {{ run = {say("never")} }}]
+
+[[case]]
+id = "C"
+title = "runs after the reset"
+steps = [{{ run = {say("C")} }}]
+"""
+            path = Path(root) / "cases.toml"
+            path.write_text(text, encoding="utf-8")
+            results, problem = suite.run_suite(suite.load(path))
+            self.assertEqual([r.status for r in results], ["pass", "fail", "pass"])
+            self.assertEqual(problem, "")
+            self.assertEqual(log.read_text().split(), ["A", "B", "reset", "C"])
+
+    def test_a_failing_reset_is_reported(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "cases.toml"
+            path.write_text(f'[suite]\nreset = [["{PY}", "-c", "raise SystemExit(1)"]]\n\n[[case]]\nid = "X"\n'
+                            f'title = "x"\nsteps = [{{ run = ["{PY}", "-c", "raise SystemExit(2)"] }}]\n', encoding="utf-8")
+            results, problem = suite.run_suite(suite.load(path))
+            self.assertEqual(results[0].status, "fail")
+            self.assertIn("reset after X", problem)
+
     def test_an_unknown_phase_is_a_bad_file(self):
         with tempfile.TemporaryDirectory() as root:
             path = Path(root) / "cases.toml"
@@ -246,6 +287,7 @@ class BundledAstarotSuiteTest(unittest.TestCase):
         self.assertEqual(by_id["E25"].phase, "soak")
         self.assertEqual(by_id["E26"].phase, "upgrade")
         self.assertTrue(by_id["E26"].steps[0].unsupported_when)
+        self.assertEqual(loaded.reset, [["sergulath", "app", "home"]])
 
 if __name__ == "__main__":
     unittest.main()

@@ -24,7 +24,7 @@ import time
 from pathlib import Path
 
 from .. import output
-from ..core import driver, headset_view, host, placement, png, screenshots, settings, steamvr, window_capture
+from ..core import driver, headset_view, host, lock, placement, png, screenshots, settings, steamvr, window_capture
 
 NAME = "view"
 HELP = "open the VR View, and save what the headset shows: the VR View (scene and overlays) or a screenshot"
@@ -93,6 +93,7 @@ def _open(args) -> int:
     if "vrserver.exe" in steamvr.running_processes():
         driver.quit_steamvr()
     done, snapshot = settings.apply({KEY: True}, settings.settings_file(), label=LABEL)
+    lock.hold(LABEL, snapshot)  # until `view close` restores it
     driver.start_steamvr()
     window = _wait_window(args.timeout)
     record = {"open": window is not None, "changed": True, "snapshot": str(snapshot),
@@ -111,6 +112,7 @@ def _close(args) -> int:
     if "vrserver.exe" in steamvr.running_processes():
         driver.quit_steamvr()
     undone = settings.restore(snapshot)
+    lock.unhold(LABEL)
     driver.start_steamvr()
     output.emit({"restored": [c.to_dict() for c in undone], "snapshot": str(snapshot)},
                 f"restored {len(undone)} setting(s) from {snapshot.name}; SteamVR restarted", args.format)

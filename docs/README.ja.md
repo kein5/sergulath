@@ -126,7 +126,7 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 | `sergulath logs` | `vrserver.txt`、`vrcompositor.txt`、アプリのログから1本の時系列を作る（時刻は UTC との差を付けた現地時刻） | 0（済み） |
 | `sergulath steamvr status` | SteamVR が動いているか、`vrmonitor` が動いているか、版、ヘッドセットとコントローラーの状態を示す | 0（済み） |
 | `sergulath steamvr start` / `wait` / `stop` | SteamVR を Steam から起動し、ヘッドセットの接続（または追跡）を待ち、SteamVR を終了する | 0（済み） |
-| `sergulath settings show` / `set` / `restore` / `pending` | SteamVR の設定（`section.name=値`）。変える前に対象のキーの写しを取り、キーごとに元に戻す | 0（済み） |
+| `sergulath settings show` / `set` / `restore` / `pending` | SteamVR の設定（`section.name=値`）。変える前に対象のキーの写しを取り、キーごとに元に戻す。仮想ヘッドセットがすでに有効なときに取った写し（「before」に `forcedDriver` `null` が入っているもの）には印を付け、`--allow-virtual-before` を付けない限り復元しない | 0（済み） |
 | `sergulath view save` / `screenshot` | ヘッドセットに映っているものを保存する。VR表示のウィンドウ（シーンとオーバーレイ）、仮想のヘッドセットのウィンドウ（`--headset`）、SteamVR のスクリーンショット（シーンだけ）のどれか。`--headset --overlay KEY` は SteamVR が画素を渡さないオーバーレイを、仮想のヘッドセットの映像から切り出す。[PC から見えるもの](#pc-から見えるもの)と [docs/checks/headset-view.md](checks/headset-view.md) を参照 | 0（済み） |
 | `sergulath caption sample start` / `stop`、`sergulath caption check` | アプリのサンプルの字幕をセッションの側から送り、字幕のオーバーレイが描かれているかを確かめる | 0（済み） |
 | `sergulath frame overlays` | 単体で動くヘッドセット自身のシステムのオーバーレイを SSH で読む（状態と、読めるものは画像） | 1（試作） |
@@ -140,6 +140,7 @@ VR の中でオーバーレイを確かめるには、ヘッドセットをか�
 | `sergulath audio devices` / `check` | 音声デバイスを数秒聞き、音量（RMS とピーク、dBFS）としきい値を超えた長さを出す。再生デバイスはループバックで読む（マイクの許可は要らない）。録音デバイスは `--allow-input` のときだけ。[docs/checks/tts-virtual-mic.md](checks/tts-virtual-mic.md) を参照 | 2（済み） |
 | `sergulath tts serve` | speech.cpp の代わりのサーバー。読み上げの依頼に音（または WAV）で答え、モデルなしでアプリの音声の経路を確かめられる | 2（済み） |
 | `sergulath suite list` / `run` | ケース定義ファイル（TOML）から E2E のケースを順に実行し、成功、失敗、エラー、未対応、人手、スキップを数える。ASTAROT の 26 件は `suites/astarot-e2e.toml`。[docs/checks/e2e-suite.md](checks/e2e-suite.md) を参照 | 2（済み） |
+| `sergulath lock status` / `release --force` | この PC で SteamVR を使っているのは誰かを表示する。SteamVR を起動・終了・再起動するコマンドと、ヘッドセット、ドライバー、設定を変えるコマンドは、PC ごとに一つの「利用権」を共有する。別の作業フォルダーからの実行は、相手のコマンドが終わるか、相手の変更（`hmd on`、`view open`、`chaperone apply`、`settings set`）が元に戻るまで、終了コード 4 で断る | 2（試作） |
 | `sergulath soak` | 動いているアプリを一定時間（既定 30 分）見守り、プロセスが落ちないこと、ウォームアップ後のプロセスツリーのメモリ使用量が増え続けないこと、指定したオーバーレイが表示され続けることを確かめる（読み取りだけ）。[docs/checks/soak-and-upgrade.md](checks/soak-and-upgrade.md) を参照 | 2（済み） |
 | `sergulath upgrade channel` / `check` | 更新チャネルのマニフェストを確認する（読み取りだけ）、または隔離したフォルダーで旧版（0.6.0）からベータチャネルかローカルの配布ファイルへ更新し、設定とモデルが引き継がれて通常起動できることを確かめる。[docs/checks/soak-and-upgrade.md](checks/soak-and-upgrade.md) を参照 | 2（済み） |
 | `sergulath app status` / `start` / `stop` / `press` | 確認するアプリ。専用の設定フォルダーで起動し（`--settings-dir`、`--fresh`）、止め、ボタンを名前で押す | 2（済み） |

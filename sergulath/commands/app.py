@@ -12,10 +12,13 @@
   app type --field NAME --text TEXT [--then BUTTON ...]
                                    Set a field's text (such as the message box), then press buttons.
   app press NAME [NAME ...] [--prefix]
-                                   Press buttons or check boxes in its main window, in order, by
-                                   accessible name (Windows UI Automation; no mouse, no focus).
+                                   Press buttons or check boxes, in order, by accessible name
+                                   (Windows UI Automation; no mouse, no focus). Each is looked for
+                                   in the main window, then in the app's other windows (the
+                                   profile's [app.other_windows]: ASTAROT 0.7's settings window).
   app home [--lang ja]             Bring it back to its main page: stop a caption sample that is
-                                   still sending, press "back" while there is one, and check that
+                                   still sending, close the settings window (or press "back"
+                                   while there is one, up to 0.7.0-beta.2), and check that
                                    the main page's settings button is there (the profile's
                                    [ui.LANG] labels). A suite runs it after a failed case, so a
                                    case that stopped half-way on the settings page does not take
@@ -73,11 +76,14 @@ def add_arguments(parser) -> None:
 
 def home_steps(labels: dict) -> list:
     """Back to the main page from wherever a case stopped: every press is optional, then the main
-    page's settings button must be there. Two "back" presses cover a page opened from a page."""
-    return [uia.Step(labels["sample_stop"], optional=True, timeout=0.5),
-            uia.Step(labels["back"], optional=True, timeout=1.5),
-            uia.Step(labels["back"], optional=True, timeout=0.5),
-            uia.Step(labels["open_settings"], check_only=True, timeout=5)]
+    page's settings button must be there. A settings window (0.7.0-beta.3 and later) is closed;
+    on older versions two "back" presses cover a page opened from a page."""
+    steps = [uia.Step(labels["sample_stop"], optional=True, timeout=0.5)]
+    if labels.get("close_settings"):
+        steps.append(uia.Step(labels["close_settings"], optional=True, timeout=0.5))
+    return steps + [uia.Step(labels["back"], optional=True, timeout=1.5),
+                    uia.Step(labels["back"], optional=True, timeout=0.5),
+                    uia.Step(labels["open_settings"], check_only=True, timeout=5)]
 
 
 def pids(process: str) -> list[int]:
@@ -124,20 +130,20 @@ def run(args) -> int:
             output.note(f"the profile has no [ui.{args.lang}] labels")
             return output.USAGE
         pid = app_core.show_main_window(info)
-        result = uia.press(pid, info["main_window_title"], home_steps(labels))
+        result = uia.press(pid, uia.windows_for(info), home_steps(labels))
         output.emit(result, "on the main page" if result.get("ok") else f"not back on the main page: {result}",
                     args.format)
         return output.OK if result.get("ok") else output.NOT_MET
     if args.action == "press":
         pid = app_core.show_main_window(info)
-        result = uia.press(pid, info["main_window_title"],
+        result = uia.press(pid, uia.windows_for(info),
                            [uia.Step(name, prefix=args.prefix, timeout=args.timeout) for name in args.names])
         output.emit(result, ("pressed " + ", ".join(args.names)) if result.get("ok") else f"failed: {result}", args.format)
         return output.OK if result.get("ok") else output.NOT_MET
     if args.action == "type":
         pid = app_core.show_main_window(info)
         steps = [uia.Step(args.field, value=args.text)] + [uia.Step(name) for name in args.then]
-        result = uia.press(pid, info["main_window_title"], steps)
+        result = uia.press(pid, uia.windows_for(info), steps)
         output.emit(result, f"typed into {args.field}" if result.get("ok") else f"failed: {result}", args.format)
         return output.OK if result.get("ok") else output.NOT_MET
     # start

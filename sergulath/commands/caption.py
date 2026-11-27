@@ -2,10 +2,11 @@
 
   caption sample start [--line one|multi]
       Brings the running app's main window up (a second start of its executable hands over to
-      the running app), opens the captions settings page and starts the app's own sample,
-      which it sends once a second while that page stays open. Changes no setting.
+      the running app), opens the captions settings page (in the settings window from ASTAROT
+      0.7.0-beta.3) and starts the app's own sample, which it sends once a second while that
+      page stays open. Changes no setting.
   caption sample stop
-      Stops the sample and leaves the settings page.
+      Stops the sample and closes the settings window (or leaves the settings page).
   caption check [--line one|multi] [--save DIR] [--view FILE]
       Reads the caption overlay: shown, not transparent and drawn. With --view, also saves the
       VR View (the caption is in it only while the headset tracks).
@@ -40,11 +41,13 @@ def add_arguments(parser) -> None:
 def _sample(args, profile) -> int:
     labels = profile["ui"][args.lang]
     pid = app.show_main_window(profile["app"])
-    title = profile["app"]["main_window_title"]
+    windows = uia.windows_for(profile["app"])
     if args.state == "start":
         steps = [
             uia.Step(labels["sample_stop"], optional=True, timeout=0.5),  # already sending: stop first
-            uia.Step(labels["open_settings"], optional=True, timeout=2),  # absent when settings are open
+            # Up to 0.7.0-beta.2 absent when the settings page is open; from beta.3 it opens the
+            # settings window, or brings it to the front, and the steps below are found there.
+            uia.Step(labels["open_settings"], optional=True, timeout=2),
             uia.Step(labels["page"]),
             uia.Step(labels["details_prefix"], prefix=True),
             uia.Step(labels["tab_one" if args.line == "one" else "tab_multi"]),
@@ -52,8 +55,11 @@ def _sample(args, profile) -> int:
             uia.Step(labels["sample_stop"], check_only=True),
         ]
     else:
-        steps = [uia.Step(labels["sample_stop"], optional=True, timeout=2), uia.Step(labels["back"], optional=True, timeout=2)]
-    result = uia.press(pid, title, steps)
+        steps = [uia.Step(labels["sample_stop"], optional=True, timeout=2)]
+        if labels.get("close_settings"):  # the settings window, 0.7.0-beta.3 and later
+            steps.append(uia.Step(labels["close_settings"], optional=True, timeout=1))
+        steps.append(uia.Step(labels["back"], optional=True, timeout=1))  # the settings page, up to beta.2
+    result = uia.press(pid, windows, steps)
     text = ("sample " + ("sending" if args.state == "start" else "stopped")) if result.get("ok") else f"failed: {result}"
     output.emit({"action": args.state, "line": args.line, **result}, text, args.format)
     return output.OK if result.get("ok") else output.NOT_MET

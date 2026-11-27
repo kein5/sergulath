@@ -17,7 +17,10 @@ Run it from the repository's root (the case file's paths are relative to it).
 
 - SteamVR with the headset connected. A Steam Frame lying on a desk is fine: the cases that need
   a worn headset or a hand run on the virtual headset (`hmd`) with the virtual controllers.
-- The installed ASTAROT 0.6 or later.
+- The installed ASTAROT 0.7.0-beta.3 or later. The settings open in a window of their own from
+  beta.3 (ASTAROT #1236), and E11, E14 and E15 close it with its "設定を閉じる" button; on an
+  earlier version, whose settings page has "戻る" instead, those three fail at their last press.
+  `caption sample` and `app home` work on both.
 - The virtual controller driver built once (`sergulath driver build`).
 - E20 and E23: SSH to the Frame (`sergulath frame`); they only read.
 
@@ -74,6 +77,21 @@ error make the exit code 1.
 | E09 (pixels read) | runs on the virtual headset, from its image | develop builds hand the caption overlays to SteamVR as GPU textures, whose pixels another process cannot read (`OverlayError_InvalidTexture`). The case cuts the caption out of the virtual headset's image (`view save --headset --overlay ASTAROT0`), which works for every build; `overlay --save` stays as a record where it works. See [headset-view.md](headset-view.md) |
 | E25 (30-minute soak) | slow (`--slow`) | runs `sergulath soak` for 30 min with the caption sample active; checks PID liveness, post-warmup process-tree private memory bounds, and `ASTAROT0` visibility/alpha (without reading pixels, so standby and GPU-texture builds work). See [soak-and-upgrade.md](soak-and-upgrade.md) |
 | E26 (0.6.0 -> beta upgrade) | beta channel, or local fallback; `unsupported` while unpublished | updates an isolated 0.6.0 sandbox in `records/suite/E26` via `beta/latest.json`, or `SERGULATH_UPGRADE_TO` (local ZIP, folder or `setup.exe`) while no beta > 0.6.0 is published; reports `unsupported` otherwise. See [soak-and-upgrade.md](soak-and-upgrade.md) |
+
+## The settings window, 2026-11-27
+
+ASTAROT 0.7.0-beta.3 opens its settings in a window of their own, "ASTAROTの設定". The suite run
+on it before SERGULATH followed: 13 passed, 8 failed (E05, E06, E07, E09, E11, E13, E14, E15).
+`app press` and `caption sample` looked for "字幕とVR" and "実験的機能" in the main window only,
+and E13 failed because E11 had not turned the VR UI on.
+
+`app press`, `app type`, `app home` and `caption sample` now look in the main window first and
+then in the windows of the profile's `[app.other_windows]`; each step's JSON says which window
+it used (`"window": "main"` or `"settings"`). `caption sample stop` and `app home` close the
+settings window with "設定を閉じる". After that, on this Windows PC (SteamVR 2.19.5, a Steam Frame
+on the desk, ASTAROT 0.7.0-beta.3 installed): the eight cases passed, and the run without `--slow`
+gave 21 passed, 0 failed, 0 errors, 1 unsupported, 1 manual, 3 skipped (of 26). The cleanup left
+the installed app running, the driver unregistered and the lock free.
 
 ## First run, 2026-11-23
 

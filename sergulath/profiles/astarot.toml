@@ -15,6 +15,13 @@ main_window_title = "ASTAROT"
 log = "%LOCALAPPDATA%\\ASTAROT\\logs\\process.log"
 legacy_log = ["%LOCALAPPDATA%\\VRCT-VOX\\logs\\process.log"]
 
+# The app's other top-level windows, searched after the main window by `app press`, `app type`,
+# `app home` and `caption sample`. 0.7.0-beta.3 and later open the settings in a window of their
+# own (ASTAROT #1236), titled in the UI language (locales: studio.settings_window_title). Until its
+# page sets that title it is "ASTAROT", like the main window, which the main title covers.
+[app.other_windows]
+settings = ["ASTAROTの設定", "ASTAROT Settings"]
+
 # Settings for an app the tools start with a settings folder of its own (`sergulath app start
 # --settings-dir DIR --fresh`): no first-run setup, no telemetry question, nothing sent to VRChat
 # (and no firewall question for OSC), Japanese UI (the [ui.ja] names), both caption overlays on.
@@ -37,7 +44,8 @@ one = "ASTAROT0"
 multi = "ASTAROT1"
 
 # Accessible names of the buttons on the way to the caption sample, in the app's Japanese UI
-# (locales/ja.yml). The sample is sent once a second while the settings page stays open.
+# (locales/ja.yml). The sample is sent once a second while the settings page stays open. From
+# 0.7.0-beta.3 the settings page is in the settings window; the main window keeps the gear button.
 [ui.ja]
 open_settings = "設定を開く"                     # main page, gear button
 page = "字幕とVR"                                # settings rail
@@ -46,7 +54,8 @@ tab_one = "一行"
 tab_multi = "複数行"
 sample_start = "サンプルの文を字幕オーバーレイに送る"
 sample_stop = "送信を停止"
-back = "戻る"
+back = "戻る"                                    # the settings page's back button, up to 0.7.0-beta.2
+close_settings = "設定を閉じる"                  # the settings window's close button, 0.7.0-beta.3 and later
 
 # How GetOverlayImageData hands back each overlay's pixels (for `overlay --save`). The captions
 # are raw RGBA (SetOverlayRaw); the VR panel, the launcher and the popup share one D3D11 texture

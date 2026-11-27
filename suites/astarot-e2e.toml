@@ -6,7 +6,7 @@
 #     SERGULATH_UPGRADE_TO=path/to/ASTAROT.zip sergulath suite run --cases suites/astarot-e2e.toml --only E26
 #
 # What it needs: SteamVR with the headset connected (a Steam Frame lying on a desk is fine),
-# the installed ASTAROT 0.6 or later, the virtual controller driver built (`sergulath driver
+# the installed ASTAROT 0.7.0-beta.3 or later (E11, E14 and E15 close its settings window), the virtual controller driver built (`sergulath driver
 # build`), and for E20 and E23 SSH to the Frame (`sergulath frame`).
 #
 # What it changes, all put back by the teardowns, also after a failure:
@@ -24,12 +24,16 @@
 #
 # Order: the cases that use the real headset first, then the virtual-headset ones, so each phase
 # is set up once. Names pressed in the app are its Japanese UI (UI_LANGUAGE ja in the profile's
-# check settings).
+# check settings). From ASTAROT 0.7.0-beta.3 the settings open in a window of their own
+# ("ASTAROTの設定", #1236): `app press` finds the settings' controls there, and the cases close
+# it with its "設定を閉じる" button where they used to press "戻る". The reset (`app home`) closes
+# it too after a case that stopped half-way.
 
 [suite]
 name = "astarot-e2e"
 # After a case that failed or errored: back to the main page (stop a caption sample still
-# sending, leave the settings page), so the next cases do not fail one after another.
+# sending, close the settings window or leave the settings page), so the next cases do not fail
+# one after another.
 reset = [["sergulath", "app", "home"]]
 setup = [
     ["sergulath", "app", "stop"],
@@ -169,7 +173,7 @@ id = "E11"
 group = "vr-ui"
 title = "Turning the VR UI on registers the launcher (ASTAROT3) and shows it"
 steps = [
-    { run = ["sergulath", "app", "press", "設定を開く", "実験的機能", "VR UIを表示する", "戻る"] },
+    { run = ["sergulath", "app", "press", "設定を開く", "実験的機能", "VR UIを表示する", "設定を閉じる"] },
     { run = ["sergulath", "overlay", "--key", "ASTAROT3", "--format", "json"], json = { found = true, visible = true }, wait = 4 },
     { run = ["sergulath", "overlay", "--key", "ASTAROT2", "--format", "json"], json = { found = true } },
     { run = ["sergulath", "overlay", "--key", "ASTAROT4", "--format", "json"], json = { found = true } },
@@ -189,7 +193,7 @@ id = "E15"
 group = "vr-ui"
 title = "Turning the VR UI off hides ASTAROT2 and ASTAROT3"
 steps = [
-    { run = ["sergulath", "app", "press", "設定を開く", "実験的機能", "VR UIを表示する", "戻る"] },
+    { run = ["sergulath", "app", "press", "設定を開く", "実験的機能", "VR UIを表示する", "設定を閉じる"] },
     { run = ["sergulath", "overlay", "--key", "ASTAROT3", "--format", "json"], json = { visible = false }, wait = 4 },
     { run = ["sergulath", "overlay", "--key", "ASTAROT2", "--format", "json"], json = { visible = false } },
 ]
@@ -308,7 +312,7 @@ group = "vr-ui"
 phase = "virtual"
 title = "After resetting its position, the launcher is back on the left wrist"
 steps = [
-    { run = ["sergulath", "app", "press", "設定を開く", "実験的機能", "ランチャーの位置と大きさを初期に戻す", "戻る"] },
+    { run = ["sergulath", "app", "press", "設定を開く", "実験的機能", "ランチャーの位置と大きさを初期に戻す", "設定を閉じる"] },
     { run = ["sergulath", "overlay", "--placement", "--key", "ASTAROT3", "--format", "json"], json = { "placement.device" = "controller/left", "placement.offset_distance_m" = { lt = 0.3 } }, wait = 3 },
 ]
 
